@@ -14,7 +14,6 @@ use InvalidArgumentException;
 use Joby\Smol\Context\Config\Config;
 use Joby\Smol\Context\Config\ConfigTypeException;
 use Joby\Smol\Context\Container;
-use Joby\Smol\Context\PathGuard\IncludeGuard;
 use ReflectionException;
 use ReflectionFunction;
 use ReflectionMethod;
@@ -28,8 +27,6 @@ use Throwable;
  */
 class DefaultInvoker implements Invoker
 {
-
-    protected IncludeGuard|null $include_guard;
 
     public function __construct(protected Container $container) {}
 
@@ -85,9 +82,6 @@ class DefaultInvoker implements Invoker
             // check that file is readable
             if (!is_readable($path))
                 throw new RuntimeException("File $file is not readable.");
-            // check that path is allowed to be included, if an IncludeGuard is registered
-            if (false === $this->includeGuard()?->check($path))
-                throw new RuntimeException("File $file is not allowed to be included.");
             // cache further operations
             $key = md5_file($path);
             /** @var array<string,ConfigPlaceholder|ObjectPlaceholder> $vars */
@@ -135,17 +129,6 @@ class DefaultInvoker implements Invoker
         catch (Throwable $th) {
             throw new ExecutionException($th);
         }
-    }
-
-    protected function includeGuard(): IncludeGuard|null
-    {
-        if (!isset($this->include_guard)) {
-            $this->include_guard = null;
-            if ($this->container->has(IncludeGuard::class)) {
-                $this->include_guard = $this->container->get(IncludeGuard::class);
-            }
-        }
-        return $this->include_guard;
     }
 
     /**

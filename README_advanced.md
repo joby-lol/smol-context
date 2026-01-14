@@ -12,8 +12,6 @@ This document provides detailed information about the internal components and ad
   - [Attributes](#attributes)
     - [ConfigValue Attribute](#configvalue-attribute)
     - [CategoryName Attribute](#categoryname-attribute)
-  - [PathGuard services](#pathguard-services)
-    - [DefaultIncludeGuard Implementation](#defaultincludeguard-implementation)
   - [Configuration System](#configuration-system)
     - [Config Interface](#config-interface)
     - [DefaultConfig Implementation](#defaultconfig-implementation)
@@ -152,30 +150,6 @@ ctx_register($currentUser, 'current');
 
 // Execute with the current user automatically injected
 ctx_execute('processUser');
-```
-
-## PathGuard services
-
-The smolContext library provides a `PathGuard` interface that can be used to check whether a given file is allowed to be used for various purposes. By default, this is used in the `Invoker` under the name `IncludeGuard` as a mechanism for preventing the inclusion of untrusted files. The interface is a single `check($filename)` method that returns a boolean indicating whether the file is allowed to be used. You can implement your own `PathGuard` services to customize the behavior, or you can use the `DefaultReadGuard`, `DefaultWriteGuard` and `DefaultIncludeGuard` that provide basic management by allowing/denying directories and full path names.
-
-The `PathGuard` interface is intended as a general-purpose mechanism for preventing untrusted code from being included, and may also be used by other services if they need to check whether a file is allowed to be included/executed.
-
-### DefaultIncludeGuard Implementation
-
-Default include guard implementation. Does basic checks to allow and deny includes by directory or full directory. File rules take precedence over directory rules, and after that deny rules take precedence over allow rules. This means that you can allow a directory, but deny files or subdirectories within it. It also means that you can deny a directory, but allow specific files within it.
-
-```php
-// Instantiate a new default include guard and register it
-$guard = new Joby\Smol\Context\PathGuard\DefaultIncludeGuard();
-ctx_register($guard);
-// Allow a directory
-$guard->allowDirectory('/path/to/allow');
-// Deny a directory (takes precedence over allow rules)
-$guard->denyDirectory('/path/to/allow/deny');
-// Allow a file (takes precedence over any directory-level rules)
-$guard->allowFile('/path/to/allow/deny/file.php');
-// Deny a file (takes precedence over any directory-level rules)
-$guard->denyFile('/path/to/allow/file.php');
 ```
 
 ## Configuration System

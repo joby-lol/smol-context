@@ -105,20 +105,6 @@ Then you can include that file, and the docblock will be parsed to inject depend
 $report = ctx_include('/path/to/user_report.php');
 ```
 
-#### Security note for including files
-
-Depending on your project's security requirements, you may want to have checks in place to ensure that included files
-are coming from trusted locations. In particular, if their paths are derived from user input, you should establish some
-kind of checks. Includes can be automatically checked for malicious paths by registering an object that implements the
-interface `Joby\Smol\Context\PathGuard\IncludeGuard`.
-
-This interface is designed to be very simple, so that it can be easily implemented, or used by other services that might
-be capable of including or otherwise executing files.
-
-There is a basic implementation of this interface in the library already, at
-`Joby\Smol\Context\PathGuard\DefaultIncludeGuard`. It is a simple allow/deny list that lets you allow/deny
-specific directories and/or individual files in one easily-configurable place.
-
 ## Built-in Configuration System
 
 The library includes a configuration system that allows you to inject config values as dependencies:

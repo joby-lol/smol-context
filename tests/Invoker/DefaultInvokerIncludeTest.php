@@ -12,7 +12,6 @@ namespace Joby\Smol\Context\Invoker;
 use Joby\Smol\Context\Config\Config;
 use Joby\Smol\Context\Config\DefaultConfig;
 use Joby\Smol\Context\Container;
-use Joby\Smol\Context\PathGuard\IncludeGuard;
 use Joby\Smol\Context\TestClasses\TestClassA;
 use Joby\Smol\Context\TestClasses\TestClassB;
 use PHPUnit\Framework\TestCase;
@@ -226,15 +225,4 @@ class DefaultInvokerIncludeTest extends TestCase
         }
     }
 
-    public function testIncludesWithIncludeGuard(): void
-    {
-        $guard = $this->createMock(IncludeGuard::class);
-        $guard->expects($this->once())
-            ->method('check')
-            ->with(realpath(__DIR__ . '/include_tests/empty.php'))
-            ->willReturn(true);
-        $con = new Container();
-        $con->register($guard);
-        $con->get(Invoker::class)->include(__DIR__ . '/include_tests/empty.php');
-    }
 }
