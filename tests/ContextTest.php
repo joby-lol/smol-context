@@ -189,29 +189,30 @@ class ContextTest extends TestCase
         $testObjectB = new TestClassB();
 
         // Set up expectations for the mock Container's get method
-        $mockContainer->expects($this->exactly(3))
+        $mockContainer->expects($this->exactly(4))
             ->method('get')
             ->willReturnMap([
-                [TestClassA::class, 'default', $testObjectA],
-                [TestClassB::class, 'custom', $testObjectB]
+                [TestClassA::class, $testObjectA],
+                [TestClassB::class, $testObjectB]
             ]);
 
         // Inject the mock Container into the Context
         Context::reset();
         Context::openFromContainer($mockContainer);
 
-        // Get an instance of the class
-        $instance = Context::get(TestClassA::class);
+        // Get an instance of the A class
+        $instanceA = Context::get(TestClassA::class);
 
         // Verify that we got the expected instance
-        $this->assertSame($testObjectA, $instance);
+        $this->assertSame($testObjectA, $instanceA);
 
         // Verify that getting the class again returns the same instance
         $this->assertSame($testObjectA, Context::get(TestClassA::class));
 
-        // Test with a category
-        $instanceB = Context::get(TestClassB::class, 'custom');
+        // Get an instance of the B class
+        $instanceB = Context::get(TestClassB::class);
         $this->assertSame($testObjectB, $instanceB);
+        $this->assertSame($testObjectB, Context::get(TestClassB::class));
     }
 
     /**
@@ -226,22 +227,19 @@ class ContextTest extends TestCase
         $object = new TestClassB();
 
         // Set up expectations for the mock Container's register method
-        $mockContainer->expects($this->exactly(3))
+        $mockContainer->expects($this->exactly(2))
             ->method('register')
-            ->willReturnCallback(function ($class, $category = 'default') use ($object) {
+            ->willReturnCallback(function ($class) use ($object) {
                 static $calls = 0;
                 $calls++;
 
                 // Verify the correct arguments for each call
                 if ($calls === 1) {
                     $this->assertSame(TestClassA::class, $class);
-                    $this->assertSame('default', $category);
                 } else if ($calls === 2) {
                     $this->assertSame($object, $class);
-                    $this->assertSame('default', $category);
                 } else if ($calls === 3) {
                     $this->assertSame(TestClassA::class, $class);
-                    $this->assertSame('custom', $category);
                 }
 
                 return null;
@@ -256,9 +254,6 @@ class ContextTest extends TestCase
 
         // Register an object
         Context::register($object);
-
-        // Test with a category
-        Context::register(TestClassA::class, 'custom');
     }
 
     /**
@@ -271,13 +266,13 @@ class ContextTest extends TestCase
 
         // Set up expectations for the mock Container's isRegistered method
         $mockContainer->method('has')
-            ->willReturnCallback(function ($class, $category = 'default') {
+            ->willReturnCallback(function ($class) {
                 static $calls = 0;
                 $calls++;
 
                 if ($class === TestClassA::class) {
                     // First call should return false, subsequent calls should return true
-                    return $calls > 2;
+                    return $calls > 1;
                 } else if ($class === TestClassB::class) {
                     // Always return false for TestClassB
                     return false;
@@ -297,7 +292,7 @@ class ContextTest extends TestCase
         // We need to mock the register method too, even though we're not testing it here
         $mockContainer->expects($this->once())
             ->method('register')
-            ->with(TestClassA::class, 'default');
+            ->with(TestClassA::class);
 
         // Register a class
         Context::register(TestClassA::class);

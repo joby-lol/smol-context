@@ -22,16 +22,15 @@ use Joby\Smol\Context\NotFoundException;
  *
  * @template T of object
  * @param class-string<T> $class    the class of object to retrieve
- * @param string          $category the category of the object, if applicable (i.e. "current" to get the current page for a request, etc.)
  *
  * @return T
  *
  * @throws NotFoundException  No entry was found for **this** identifier
  * @throws ContainerException Error while retrieving the entry
  */
-function ctx(string $class, string $category = 'default'): object
+function ctx(string $class): object
 {
-    return Context::get($class, $category);
+    return Context::get($class);
 }
 
 /**
@@ -57,13 +56,12 @@ function ctx_new(string|object $class): object
  * If a class is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
  *
  * @param class-string|object $class    the class name or object to register
- * @param string              $category the category of the class, if applicable (i.e. "current" to get the current page for a request, etc.)
  *
  * @throws ContainerException
  */
-function ctx_register(string|object $class, string $category = "default"): void
+function ctx_register(string|object $class): void
 {
-    Context::register($class, $category);
+    Context::register($class);
 }
 
 /**
@@ -84,7 +82,7 @@ function ctx_execute(callable $fn): mixed
 /**
  * Include a given file, parsing for an opening docblock and resolving var tags as if they were dependencies to be loaded from the container.
  *
- * Because docblock tags don't support Attributes, their equivalents are just parsed as strings. Core attributes are available by inserting strings that look like them on lines preceding a var tag. The actual Attribute classes need not be included, because this system just looks for strings that look like `#[CategoryName("category_name")]` or `[ConfigValue("config_key")]`.
+ * Because docblock tags don't support Attributes, their equivalents are just parsed as strings. Core attributes are available by inserting strings that look like them on lines preceding a var tag. The actual Attribute classes need not be included, because this system just looks for strings that look like `[ConfigValue("config_key")]`.
  *
  * This method will return either the output of the included file, or the value returned by it if there is one. Note that if the included script explicitly returns the integer "1" that cannot be differentiated from returning nothing at all. Generally the best practice is to return objects if you are returning anything, for unambiguous behavior. Although non-integer values are also a reasonable choice.
  *

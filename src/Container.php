@@ -32,23 +32,18 @@ class Container
     public readonly Invoker $invoker;
 
     /**
-     * Array holding the classes that have been registered, including their
-     * parent classes, sorted first by category and then by class name, listing
-     * the class names as strings.
+     * Array holding the classes that have been registered, including their parent classes, listed by class name, listing the class names as strings.
      *
-     * The listed class names are then used to look up or instantiate objects
-     * as needed.
+     * The listed class names are then used to look up or instantiate objects as needed.
      *
-     * @var array<string, array<class-string, class-string>>
+     * @var array<class-string, class-string>
      */
     protected array $classes = [];
 
     /**
-     * Array holding the built objects, indexed first by category and then by
-     * class name. There will be multiple copies of most objects, as they are
-     * saved under all parent classes as well.
+     * Array holding the built objects, indexed by class name. There will be multiple copies of most objects, as they are saved under all parent classes as well.
      *
-     * @var array<string, array<class-string, object>>
+     * @var array<class-string, object>
      */
     protected array $built = [];
 
@@ -73,18 +68,14 @@ class Container
         // @phpstan-ignore-next-line it's fine to assign this in __clone()
         $this->invoker = new ($this->invoker::class)($this);
         $unique_objects = [];
-        foreach ($this->built as $category => $built) {
-            foreach ($built as $object) {
-                if (!array_key_exists(spl_object_id($object), $unique_objects))
-                    $unique_objects[spl_object_id($object)] = [clone $object, []];
-                $unique_objects[spl_object_id($object)][1][] = $category;
-            }
+        foreach ($this->built as $object) {
+            $object_id = spl_object_id($object);
+            if (!array_key_exists($object_id, $unique_objects))
+                $unique_objects[$object_id] = clone $object;
         }
         $this->built = [];
         foreach ($unique_objects as $obj) {
-            foreach ($obj[1] as $category) {
-                $this->register($obj[0], $category);
-            }
+            $this->register($obj);
         }
     }
 
@@ -96,13 +87,11 @@ class Container
      * NOTE: Built-in container services (Invoker, CacheInterface, Config) cannot be registered using this method.
      *
      * @param class-string|object $class    the class name or object to register
-     * @param string              $category the category of the class, if applicable (i.e. "current" to get the current page for a request, etc.)
      *
      * @throws ContainerException if an error occurs while registering the class
      */
     public function register(
         string|object $class,
-        string $category = 'default',
     ): void
     {
         // if the class is an object, get its class name
@@ -128,31 +117,28 @@ class Container
         }
         // save all classes under the class name alias list
         foreach ($all_classes as $alias_class) {
-            $this->classes[$category][$alias_class] = $class;
+            $this->classes[$alias_class] = $class;
         }
         // if there is an object, also save it under the built objects list
         if (isset($object)) {
             foreach ($all_classes as $alias_class) {
-                $this->built[$category][$alias_class] = $object;
+                $this->built[$alias_class] = $object;
             }
         }
     }
 
     /**
-     * Get an object of the given class, either by retrieving a built copy of it
-     * or by instantiating it for the first time if necessary.
+     * Get an object of the given class, either by retrieving a built copy of it or by instantiating it for the first time if necessary.
      *
      * @template T of object
      * @param class-string<T> $class       the class of object to retrieve
-     * @param string          $category the category of the object, if applicable (i.e. "current" to get the current
-     *                                  page for a request, etc.)
      *
      * @return T
      *
      * @throws ContainerException Error while retrieving the entry
      * @throws NotFoundException  No entry was found for **this** class
      */
-    public function get(string $class, string $category = 'default'): object
+    public function get(string $class): object
     {
         // short-circuit on built-in classes
         if ($class === Invoker::class)
@@ -162,23 +148,20 @@ class Container
         if ($class === Config::class)
             return $this->config; // @phpstan-ignore-line this is the right class
         // normal get/instantiate
-        $output = $this->getBuilt($class, $category)
-            ?? $this->instantiate($class, $category);
+        $output = $this->getBuilt($class)
+            ?? $this->instantiate($class);
         // otherwise return the output
         assert($output instanceof $class);
         return $output;
     }
 
     /**
-     * Check if a class is registered in the context under the given category,
-     * without instantiating it. This is useful for checking if a class is
-     * available without the overhead of instantiation.
+     * Check if a class is registered in the context, without instantiating it. This is useful for checking if a class is available without the overhead of instantiation.
      *
      * @param class-string $id
      */
     public function has(
         string $id,
-        string $category = 'default',
     ): bool
     {
         // short-circuit on built-in classes
@@ -188,14 +171,12 @@ class Container
             return true;
         if ($id === Config::class)
             return true;
-        // check if the class is registered in the given category
-        return isset($this->classes[$category][$id]);
+        // check if the class is registered
+        return isset($this->classes[$id]);
     }
 
     /**
-     * Get all the classes and interfaces that a given class inherits from or
-     * implements, including itself. This is used to ensure that all classes
-     * are retrievable even if they extend the class that is being requested.
+     * Get all the classes and interfaces that a given class inherits from or implements, including itself. This is used to ensure that all classes are retrievable even if they extend the class that is being requested.
      *
      * @param class-string $class
      *
@@ -223,64 +204,58 @@ class Container
      *
      * @template T of object
      * @param class-string<T> $class    the class of object to retrieve
-     * @param string          $category the category of the object, if applicable (i.e. "current" to get the current
-     *                                  page for a request, etc.)
      *
      * @return T|null
      */
-    protected function getBuilt(string $class, string $category): object|null
+    protected function getBuilt(string $class): object|null
     {
         // if the class is not registered, return null
-        if (!$this->has($class, $category)) {
+        if (!$this->has($class)) {
             return null;
         }
         // return null if the built object does not exist
-        if (!isset($this->built[$category][$class])) {
+        if (!isset($this->built[$class])) {
             return null;
         }
         // return the built object
         assert(
-            $this->built[$category][$class] instanceof $class,
+            $this->built[$class] instanceof $class,
             sprintf(
-                "The built object for class %s in category %s is not of the expected type (got a %s).",
+                "The built object for class %s is not of the expected type (got a %s).",
                 $class,
-                $category,
-                get_class($this->built[$category][$class]),
+                get_class($this->built[$class]),
             ),
         );
-        return $this->built[$category][$class];
+        return $this->built[$class];
     }
 
     /**
-     * Instantiate the given class if it has not been instantiated yet. Returns
-     * the built object when finished.
+     * Instantiate the given class if it has not been instantiated yet. Returns the built object when finished.
      *
      * @template T of object
      * @param class-string<T> $class    the class of object to instantiate
-     * @param string          $category the category of the object, if applicable (i.e. "current" to get the current
-     *                                  page for a request, etc.)
      *
      * @return T
      *
      * @throws ContainerException Error while instantiating
      * @throws NotFoundException No entry found for **this** identifier
      */
-    protected function instantiate(string $class, string $category): object
+    protected function instantiate(string $class): object
     {
         // if the class is not registered, return null
-        if (!isset($this->classes[$category][$class])) {
+        if (!isset($this->classes[$class])) {
             throw new NotFoundException(
-                "The class $class is not registered in the context under category $category. " .
+                "The class $class is not registered in the context. " .
                 "Did you forget to call " . get_called_class() . "::register() to register it?"
             );
         }
         // get the actual class name from the registered classes
-        $actual_class = $this->classes[$category][$class];
+        $actual_class = $this->classes[$class];
         // check for circular dependencies
-        $dependency_key = implode('|', [$category, $actual_class]);
+        $dependency_key = $actual_class;
         if (isset($this->instantiating[$dependency_key])) {
             throw new ContainerException(
-                "Circular dependency detected when instantiating $class in category $category. " .
+                "Circular dependency detected when instantiating $class. " .
                 implode(' -> ', array_keys($this->instantiating))
             );
         }
@@ -302,7 +277,7 @@ class Container
         }
         assert($built instanceof $class);
         foreach ($all_classes as $alias_class) {
-            $this->built[$category][$alias_class] = $built;
+            $this->built[$alias_class] = $built;
         }
         // clean up list of what is currently instantiating
         unset($this->instantiating[$dependency_key]);

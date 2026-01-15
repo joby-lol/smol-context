@@ -11,7 +11,6 @@ This document provides detailed information about the internal components and ad
     - [How the Container Works](#how-the-container-works)
   - [Attributes](#attributes)
     - [ConfigValue Attribute](#configvalue-attribute)
-    - [CategoryName Attribute](#categoryname-attribute)
   - [Configuration System](#configuration-system)
     - [Config Interface](#config-interface)
     - [DefaultConfig Implementation](#defaultconfig-implementation)
@@ -36,13 +35,13 @@ namespace Joby\Smol\Context;
 class Context
 {
     // Get an object from the container
-    public static function get(string $class, string $category = 'default'): mixed;
+    public static function get(string $class): mixed;
 
     // Get or set the container instance
     public static function container(Container|null $container = null): Container;
 
     // Register a class or object with the container
-    public static function register(string|object $class, string $category = "default"): void;
+    public static function register(string|object $class): void;
 
     // Check if a class is registered in the container
     public static function isRegistered(string $class): bool;
@@ -71,19 +70,19 @@ class Container
     public function __construct(Config|null $config = null, Invoker|null $invoker = null);
 
     // Register a class or object
-    public function register(string|object $class, string $category = 'default'): void;
+    public function register(string|object $class): void;
 
-    // Get an object by class name and category
-    public function get(string $class, string $category = 'default'): object;
+    // Get an object by class name
+    public function get(string $class): object;
 
     // Check if a class is registered
-    public function isRegistered(string $class, string $category = 'default'): bool;
+    public function isRegistered(string $class): bool;
 }
 ```
 
 Key features:
 
-- Manages registered classes and objects by category
+- Manages registered classes and objects
 - Handles instantiation of objects when needed
 - Detects and prevents circular dependencies
 - Automatically registers parent classes and interfaces
@@ -127,29 +126,6 @@ function generateReport(
 
 // Execute with config values automatically injected
 ctx_execute('generateReport');
-```
-
-### CategoryName Attribute
-
-The `CategoryName` attribute is used to specify the category from which a parameter should be pulled when injecting dependencies.
-
-Usage example:
-
-```php
-function processUser(
-    #[CategoryName('current')] User $user,
-    Logger $logger
-) {
-    $logger->log("Processing user: {$user->getName()}");
-    // ...
-}
-
-// Register a user in the 'current' category
-$currentUser = new User(1);
-ctx_register($currentUser, 'current');
-
-// Execute with the current user automatically injected
-ctx_execute('processUser');
 ```
 
 ## Configuration System

@@ -31,7 +31,6 @@ class IncludeFileVarParserTest extends TestCase
             /** @var ObjectPlaceholder $placeholder */
             $placeholder = $vars['test'];
             $this->assertSame('Joby\\Smol\\Context\\TestClasses\\TestClassB', $placeholder->class);
-            $this->assertSame('default', $placeholder->category);
         }
         finally {
             @unlink($path);

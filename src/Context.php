@@ -42,22 +42,19 @@ class Context
     protected static Container|null $current;
 
     /**
-     * Get an object of the given class, either by retrieving a built copy of it
-     * or by instantiating it for the first time if necessary.
+     * Get an object of the given class, either by retrieving a built copy of it or by instantiating it for the first time if necessary.
      *
      * @template T of object
      * @param class-string<T> $class    the class of object to retrieve
-     * @param string          $category the category of the object, if applicable (i.e. "current" to get the current
-     *                                  page for a request, etc.)
      *
      * @return T
      *
      * @throws NotFoundException  No entry was found for **this** identifier
      * @throws ContainerException Error while retrieving the entry
      */
-    public static function get(string $class, string $category = 'default'): object
+    public static function get(string $class): object
     {
-        return static::container()->get($class, $category);
+        return static::container()->get($class);
     }
 
     /**
@@ -126,30 +123,21 @@ class Context
     }
 
     /**
-     * Register a class or object to the context so that it can be retrieved
-     * later using the get() method. This will also register all parent
-     * classes and interfaces of the given class so that it can be retrieved
-     * using any of them.
-     *
-     * If a class is given, it will be instantiated the first time it is
-     * requested. If an object is given, it will be saved as a built object
-     * and can be retrieved directly without instantiation.
+     * Register a class or object to the context so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
+     * 
+     * If a class is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
      *
      * @param class-string|object $class    the class name or object to register
-     * @param string              $category the category of the class, if applicable (i.e. "current" to get the current
-     *                                      page for a request, etc.)
      *
      * @throws ContainerException if an error occurs while registering the class
      */
-    public static function register(string|object $class, string $category = "default"): void
+    public static function register(string|object $class): void
     {
-        static::container()->register($class, $category);
+        static::container()->register($class);
     }
 
     /**
-     * Check if a class is registered in the context under the given category,
-     * without instantiating it. This is useful for checking if a class is
-     * available without the overhead of instantiation.
+     * Check if a class is registered in the context, without instantiating it. This is useful for checking if a class is available without the overhead of instantiation.
      *
      * @param class-string $class
      */
@@ -159,8 +147,7 @@ class Context
     }
 
     /**
-     * Create a new empty Container. This is in its own method so that it can be overridden by child classes if you want
-     * to create your own domain-specific Context class based on this one.
+     * Create a new empty Container. This is in its own method so that it can be overridden by child classes if you want to create your own domain-specific Context class based on this one.
      */
     protected static function createContainer(): Container
     {

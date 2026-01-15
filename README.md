@@ -40,10 +40,6 @@ ctx_register(UserService::class);
 // Register an object instance
 $logger = new Logger();
 ctx_register($logger);
-
-// Register with a specific category
-$currentUser = new User(1);
-ctx_register($currentUser, 'current');
 ```
 
 ### Retrieving Objects
@@ -51,9 +47,6 @@ ctx_register($currentUser, 'current');
 ```php
 // Get a service from the container
 $userService = ctx(UserService::class);
-
-// Get a service with a specific category
-$currentUser = ctx(User::class, 'current');
 ```
 
 ### Instantiating transient objects with Dependency Injection

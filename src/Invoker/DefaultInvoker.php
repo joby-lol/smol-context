@@ -57,18 +57,11 @@ class DefaultInvoker implements Invoker
     }
 
     /**
-     * Include a given file, parsing for an opening docblock and resolving var tags as if they
-     *  were dependencies to be loaded from the container.
+     * Include a given file, parsing for an opening docblock and resolving var tags as if they were dependencies to be loaded from the container.
      *
-     *  Because docblock tags don't support Attributes, their equivalents are just parsed as strings.
-     *  Core attributes are available by inserting strings that look like them on lines preceding a var tag. The
-     *  actual Attribute classes need not be included, because this system just looks for strings that
-     *  look like `#[CategoryName("category_name")]` or `#[ConfigValue("config_key")]`.
+     * Because docblock tags don't support Attributes, their equivalents are just parsed as strings. Core attributes are available by inserting strings that look like them on lines preceding a var tag. The actual Attribute classes need not be included, because this system just looks for strings that look like `#[ConfigValue("config_key")]`.
      *
-     *  This method will return either the output of the included file, or the value returned by it if there is one.
-     *  Note that if the included script explicitly returns the integer "1" that cannot be differentiated from returning
-     *  nothing at all. Generally the best practice is to return objects if you are returning anything, for unambiguous
-     *  behavior. Although non-integer values are also a reasonable choice.
+     * This method will return either the output of the included file, or the value returned by it if there is one. Note that if the included script explicitly returns the integer "1" that cannot be differentiated from returning nothing at all. Generally the best practice is to return objects if you are returning anything, for unambiguous behavior. Although non-integer values are also a reasonable choice.
      *
      * @throws IncludeException if an error occurs while including the file
      */
@@ -106,9 +99,7 @@ class DefaultInvoker implements Invoker
     }
 
     /**
-     * Execute a callable, automatically instantiating any arguments it requires from the context injection system.
-     *  This allows for easy execution of functions and methods with dependencies, without needing to manually resolve
-     *  anything.
+     * Execute a callable, automatically instantiating any arguments it requires from the context injection system. This allows for easy execution of functions and methods with dependencies, without needing to manually resolve anything.
      *
      * @template T of mixed
      * @param callable(mixed...):T $fn
@@ -204,16 +195,6 @@ class DefaultInvoker implements Invoker
             // get the type hint of the parameter
             $type = (string) $param->getType();
             assert(!empty($type), "The parameter {$param->getName()} does not have a type hint.");
-            // if there is no ParameterValue attribute, we need to get the value
-            // first look for a ParameterCategory attribute so we can determine the category
-            $attr = $param->getAttributes(CategoryName::class);
-            if (count($attr) > 0) {
-                // if there is a ParameterCategory attribute, use its category
-                $category = $attr[0]->newInstance()->category;
-            }
-            else {
-                $category = 'default';
-            }
             // look for a ConfigValue attribute and use it to get a value from Config if it exists
             $attr = $param->getAttributes(ConfigValue::class);
             if (count($attr) > 0) {
@@ -228,7 +209,6 @@ class DefaultInvoker implements Invoker
                     $param->isOptional(),
                     $param->isOptional() ? $param->getDefaultValue() : null,
                     $param->allowsNull(),
-                    $category,
                 );
                 continue;
             }
@@ -236,7 +216,6 @@ class DefaultInvoker implements Invoker
             assert(class_exists($type), "The class $type does not exist for parameter {$param->getName()}.");
             $args[] = new ObjectPlaceholder(
                 $type,
-                $category,
             );
         }
         return $args;
@@ -253,9 +232,7 @@ class DefaultInvoker implements Invoker
             function (ConfigPlaceholder|ObjectPlaceholder $arg): mixed {
                 if ($arg instanceof ConfigPlaceholder) {
                     // attempt to get config value
-                    $config = $arg->category === 'default'
-                        ? $this->container->config
-                        : $this->container->get(Config::class, $arg->category);
+                    $config = $this->container->config;
                     if (!$config->has($arg->key)) {
                         if (!$arg->is_optional)
                             throw new RuntimeException("Config value for key $arg->key does not exist.");
@@ -269,7 +246,7 @@ class DefaultInvoker implements Invoker
                     return $value;
                 }
                 // arg must be an ObjectPlaceholder
-                return $this->container->get($arg->class, $arg->category);
+                return $this->container->get($arg->class);
             },
             $args,
         );

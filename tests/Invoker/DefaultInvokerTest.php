@@ -141,30 +141,6 @@ class DefaultInvokerTest extends TestCase
         $this->assertEquals($b, $c->b);
     }
 
-    public function testParameterCategoryAttribute(): void
-    {
-        $con = new Container();
-        $inv = new DefaultInvoker($con);
-        $con->register(TestClassA::class);
-        $con->register(TestClassA::class, 'secondary');
-        $this->assertNotEquals(
-            $con->get(TestClassA::class),
-            $con->get(TestClassA::class, 'secondary'),
-        );
-        $this->assertEquals(
-            $con->get(TestClassA::class),
-            $inv->execute(function (TestClassA $a) {
-                return $a;
-            }),
-        );
-        $this->assertEquals(
-            $con->get(TestClassA::class, 'secondary'),
-            $inv->execute(function (#[CategoryName('secondary')] TestClassA $a) {
-                return $a;
-            }),
-        );
-    }
-
     public function testParameterConfigValueAttribute(): void
     {
         $con = new Container();

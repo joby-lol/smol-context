@@ -44,7 +44,6 @@ class IncludeFileVarParser
 
         /** @var array<string,ConfigPlaceholder|ObjectPlaceholder> $vars */
         $vars = [];
-        $currentCategory = null;
         $currentConfigKey = null;
 
         foreach ($lines as $line) {
@@ -52,16 +51,6 @@ class IncludeFileVarParser
                 continue;
             }
 
-            // check for category attribute with double quotes
-            if (preg_match('/#\[CategoryName\("([^"]+)"\)\]/', $line, $matches)) {
-                $currentCategory = $matches[1];
-                continue;
-            }
-            // check for category attribute with single quotes
-            if (preg_match('/#\[CategoryName\(\'([^\']+)\'\)\]/', $line, $matches)) {
-                $currentCategory = $matches[1];
-                continue;
-            }
             // check for config value attribute with double quotes
             if (preg_match('/#\[ConfigValue\("([^"]+)"\)\]/', $line, $matches)) {
                 $currentConfigKey = $matches[1];
@@ -150,7 +139,6 @@ class IncludeFileVarParser
                     false,
                     null,
                     $allowNull,
-                    $currentCategory ?? 'default'
                 );
             }
             else {
@@ -159,7 +147,7 @@ class IncludeFileVarParser
                 }
                 /** @var class-string $singleType */
                 $singleType = reset($types);
-                $vars[$varName] = new ObjectPlaceholder($singleType, $currentCategory ?? 'default');
+                $vars[$varName] = new ObjectPlaceholder($singleType);
             }
         }
 

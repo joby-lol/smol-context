@@ -53,17 +53,6 @@ class DefaultInvokerIncludeTest extends TestCase
         );
     }
 
-    public function testCategoryName(): void
-    {
-        $con = new Container();
-        $con->register(TestClassA::class, 'test_category');
-        $a = $con->get(TestClassA::class, 'test_category');
-        $this->assertEquals(
-            $a,
-            $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testCategoryName.php')
-        );
-    }
-
     public function testConfigValue(): void
     {
         $config = new DefaultConfig([], ['test_config_key' => 'test_value']);

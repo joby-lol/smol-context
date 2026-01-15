@@ -28,8 +28,7 @@ interface Invoker
     public function __construct(Container $container);
 
     /**
-     * Instantiate a class of the given type, resolving all its dependencies
-     * using the context injection system.
+     * Instantiate a class of the given type, resolving all its dependencies using the context injection system.
      *
      * @template T of object
      * @param class-string<T> $class
@@ -41,9 +40,7 @@ interface Invoker
     public function instantiate(string $class): object;
 
     /**
-     * Execute a callable, automatically instantiating any arguments it requires from the context injection system.
-     * This allows for easy execution of functions and methods with dependencies, without needing to manually resolve
-     * anything.
+     * Execute a callable, automatically instantiating any arguments it requires from the context injection system. This allows for easy execution of functions and methods with dependencies, without needing to manually resolve anything.
      *
      * @template T of mixed
      * @param callable(mixed...):T $fn
@@ -55,18 +52,11 @@ interface Invoker
     public function execute(callable $fn): mixed;
 
     /**
-     * Include a given file, parsing for an opening docblock and resolving var tags as if they
-     * were dependencies to be loaded from the container.
+     * Include a given file, parsing for an opening docblock and resolving var tags as if they were dependencies to be loaded from the container.
      *
-     * Because docblock tags don't support Attributes, their equivalents are just parsed as strings.
-     * Core attributes are available by inserting strings that look like them on lines preceding a var tag. The
-     * actual Attribute classes need not be included, because this system just looks for strings that
-     * look like `#[CategoryName("category_name")]` or `#[ConfigValue("config_key")]`.
+     * Because docblock tags don't support Attributes, their equivalents are just parsed as strings. Core attributes are available by inserting strings that look like them on lines preceding a var tag. The actual Attribute classes need not be included, because this system just looks for strings that look like `#[ConfigValue("config_key")]`.
      *
-     * This method will return either the output of the included file, or the value returned by it if there is one.
-     * Note that if the included script explicitly returns the integer "1" that cannot be differentiated from returning
-     * nothing at all. Generally the best practice is to return objects if you are returning anything, for unambiguous
-     * behavior. Although non-integer values are also a reasonable choice.
+     * This method will return either the output of the included file, or the value returned by it if there is one. Note that if the included script explicitly returns the integer "1" that cannot be differentiated from returning nothing at all. Generally the best practice is to return objects if you are returning anything, for unambiguous behavior. Although non-integer values are also a reasonable choice.
      *
      * @throws IncludeException if an error occurs while including the file
      */
