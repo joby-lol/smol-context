@@ -151,6 +151,10 @@ The configuration system supports:
 For more detailed information about the internal components and advanced features of the smolContext library,
 please see the [Advanced Documentation](README_advanced.md).
 
+## Requirements
+
+Fully tested on PHP 8.3+, static analysis for PHP 8.1+.
+
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+MIT License - See [LICENSE](LICENSE) file for details.
