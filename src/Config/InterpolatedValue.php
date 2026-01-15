@@ -13,9 +13,12 @@ namespace Joby\Smol\Context\Config;
  * Indicates a config value that must have other values interpolated. Values must be explicitly set as
  * InterpolatedValue objects at the time they are set for interpolation to happen.
  */
-readonly class InterpolatedValue implements ConfigValue
+class InterpolatedValue implements ConfigValue
 {
-    public function __construct(protected string $value)
+
+    public function __construct(
+        protected readonly string $value,
+    )
     {
     }
 

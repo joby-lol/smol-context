@@ -13,13 +13,13 @@ namespace Joby\Smol\Context\Invoker;
  * Class for holding the requested class name of a parameter that must be resolved before passing it to
  * wherever it is being injected.
  */
-readonly class ObjectPlaceholder
+class ObjectPlaceholder
 {
     /**
      * @param class-string $class
      */
     public function __construct(
-        public string $class,
+        public readonly string $class,
     )
     {
     }
