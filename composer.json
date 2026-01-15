@@ -5,7 +5,7 @@
     "license": "MIT",
     "require": {
         "php": ">=8.3",
-        "psr/simple-cache": "^3.0"
+        "joby/smol-cache": "^1.0"
     },
     "autoload": {
         "psr-4": {

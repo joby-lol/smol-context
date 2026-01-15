@@ -9,13 +9,12 @@
 
 namespace Joby\Smol\Context;
 
-use Joby\Smol\Context\Cache\Cache;
-use Joby\Smol\Context\Cache\DefaultCache;
+use Joby\Smol\Cache\CacheInterface;
+use Joby\Smol\Cache\EphemeralCache;
 use Joby\Smol\Context\Config\Config;
 use Joby\Smol\Context\Config\DefaultConfig;
 use Joby\Smol\Context\Invoker\DefaultInvoker;
 use Joby\Smol\Context\Invoker\Invoker;
-use Psr\SimpleCache\InvalidArgumentException;
 use Throwable;
 
 /**
@@ -26,7 +25,7 @@ use Throwable;
 class Container
 {
 
-    public readonly Cache $cache;
+    public readonly CacheInterface $cache;
 
     public readonly Config $config;
 
@@ -60,9 +59,9 @@ class Container
      */
     protected array $instantiating = [];
 
-    public function __construct(Config|null $config = null, Invoker|null $invoker_class = null, Cache|null $cache = null)
+    public function __construct(Config|null $config = null, Invoker|null $invoker_class = null, CacheInterface|null $cache = null)
     {
-        $this->cache = $cache ?? new DefaultCache();
+        $this->cache = $cache ?? new EphemeralCache();
         $this->config = $config ?? new DefaultConfig();
         $this->invoker = $invoker_class ? new $invoker_class($this) : new DefaultInvoker($this);
     }
@@ -154,7 +153,7 @@ class Container
         // short-circuit on built-in classes
         if ($class === Invoker::class)
             return $this->invoker; // @phpstan-ignore-line this is the right class
-        if ($class === Cache::class)
+        if ($class === CacheInterface::class)
             return $this->cache; // @phpstan-ignore-line this is the right class
         if ($class === Config::class)
             return $this->config; // @phpstan-ignore-line this is the right class
@@ -181,7 +180,7 @@ class Container
         // short-circuit on built-in classes
         if ($id === Invoker::class)
             return true;
-        if ($id === Cache::class)
+        if ($id === CacheInterface::class)
             return true;
         if ($id === Config::class)
             return true;
@@ -197,13 +196,15 @@ class Container
      * @param class-string $class
      *
      * @return array<class-string>
-     * @throws InvalidArgumentException
      */
     protected function allClasses(string $class): array
     {
-        return $this->cache->cache(
-            key: 'container/allClasses/' . md5($class),
-            callback: function () use ($class): array {
+        return $this->cache->get(
+            static::class . '/allClasses/' . md5($class),
+            /**
+             * @return array<class-string>
+             */
+            function () use ($class): array {
                 return array_merge(
                     [$class],                    // start with the class itself
                     class_parents($class) ?: [], // add all parent classes

@@ -138,12 +138,11 @@ class DefaultInvoker implements Invoker
      * @param callable $callback
      *
      * @return mixed
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function cache(string $key, callable $callback): mixed
     {
-        return $this->container->cache->cache(
-            'DefaultInvoker/' . $key,
+        return $this->container->cache->get(
+            static::class . '/' . $key,
             $callback,
         );
     }
@@ -153,7 +152,6 @@ class DefaultInvoker implements Invoker
      *
      * @return array<mixed>
      * @throws ReflectionException
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function buildFunctionArguments(callable|array $fn): array
     {
@@ -248,7 +246,6 @@ class DefaultInvoker implements Invoker
      * @template TKey
      * @param array<TKey,ConfigPlaceholder|ObjectPlaceholder> $args
      * @return array<TKey,mixed>
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function resolvePlaceholders(array $args): array
     {
@@ -283,8 +280,6 @@ class DefaultInvoker implements Invoker
      * if it is an invalid/unexpected type.
      * 
      * @param array<string> $types
-     *
-     * @throws \Psr\SimpleCache\InvalidArgumentException
      */
     protected function validateConfigValueType(mixed $value, string $key, array $types, bool $allowNull): void
     {

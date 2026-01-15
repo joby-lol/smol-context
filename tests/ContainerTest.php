@@ -9,8 +9,8 @@
 
 namespace Joby\Smol\Context;
 
-use Joby\Smol\Context\Cache\Cache;
-use Joby\Smol\Context\Cache\DefaultCache;
+use Joby\Smol\Cache\CacheInterface;
+use Joby\Smol\Cache\EphemeralCache;
 use Joby\Smol\Context\Config\Config;
 use Joby\Smol\Context\Config\DefaultConfig;
 use Joby\Smol\Context\Invoker\DefaultInvoker;
@@ -42,8 +42,8 @@ class ContainerTest extends TestCase
             $con->get(Config::class)
         );
         $this->assertInstanceOf(
-            DefaultCache::class,
-            $con->get(Cache::class)
+            EphemeralCache::class,
+            $con->get(CacheInterface::class)
         );
     }
 
