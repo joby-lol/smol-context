@@ -89,18 +89,14 @@ class Container
     }
 
     /**
-     * Register a class or object to the context so that it can be retrieved
-     * later using the get() method. This will also register all parent
-     * classes and interfaces of the given class so that it can be retrieved
-     * using any of them.
+     * Register a class or object to the context so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
      *
-     * If a class is given, it will be instantiated the first time it is
-     * requested. If an object is given, it will be saved as a built object
-     * and can be retrieved directly without instantiation.
+     * If a class is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
+     * 
+     * NOTE: Built-in container services (Invoker, CacheInterface, Config) cannot be registered using this method.
      *
      * @param class-string|object $class    the class name or object to register
-     * @param string              $category the category of the class, if applicable (i.e. "current" to get the current
-     *                                      page for a request, etc.)
+     * @param string              $category the category of the class, if applicable (i.e. "current" to get the current page for a request, etc.)
      *
      * @throws ContainerException if an error occurs while registering the class
      */
@@ -113,8 +109,16 @@ class Container
         if (is_object($class)) {
             $object = $class;
             $class = get_class($class);
-            assert(class_exists($class), "The class $class does not exist.");
         }
+        // disallow registering built-in container services
+        if (
+            is_a($class, Invoker::class, true)
+            || is_a($class, CacheInterface::class, true)
+            || is_a($class, Config::class, true)
+        )
+            throw new ContainerException(
+                "Cannot register $class because it is provided by the container itself.",
+            );
         // get all parent classes of the registered class
         try {
             $all_classes = $this->allClasses($class);
