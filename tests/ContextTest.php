@@ -15,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 
 class ContextTest extends TestCase
 {
+
     /**
      * Test that the reset method properly clears the stack and current container.
      */
@@ -39,14 +40,14 @@ class ContextTest extends TestCase
     }
 
     /**
-     * Test that the new() method and global ctx_new() function work correctly.
+     * Test that the new() method works correctly.
      */
     public function testNew(): void
     {
         Context::reset();
         $a = Context::new(TestClassA::class);
-        $b = ctx_new($a);
-        $c = ctx_new(TestClassA::class);
+        $b = Context::new(TestClassA::class);
+        $c = Context::new(TestClassA::class);
         $this->assertInstanceOf(TestClassA::class, $a);
         $this->assertInstanceOf(TestClassA::class, $b);
         $this->assertInstanceOf(TestClassA::class, $c);
@@ -193,7 +194,7 @@ class ContextTest extends TestCase
             ->method('get')
             ->willReturnMap([
                 [TestClassA::class, $testObjectA],
-                [TestClassB::class, $testObjectB]
+                [TestClassB::class, $testObjectB],
             ]);
 
         // Inject the mock Container into the Context
@@ -236,9 +237,11 @@ class ContextTest extends TestCase
                 // Verify the correct arguments for each call
                 if ($calls === 1) {
                     $this->assertSame(TestClassA::class, $class);
-                } else if ($calls === 2) {
+                }
+                else if ($calls === 2) {
                     $this->assertSame($object, $class);
-                } else if ($calls === 3) {
+                }
+                else if ($calls === 3) {
                     $this->assertSame(TestClassA::class, $class);
                 }
 
@@ -273,7 +276,8 @@ class ContextTest extends TestCase
                 if ($class === TestClassA::class) {
                     // First call should return false, subsequent calls should return true
                     return $calls > 1;
-                } else if ($class === TestClassB::class) {
+                }
+                else if ($class === TestClassB::class) {
                     // Always return false for TestClassB
                     return false;
                 }
@@ -346,4 +350,5 @@ class ContextTest extends TestCase
     {
         Context::reset();
     }
+
 }

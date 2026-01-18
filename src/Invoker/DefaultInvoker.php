@@ -11,8 +11,7 @@ namespace Joby\Smol\Context\Invoker;
 
 use Closure;
 use InvalidArgumentException;
-use Joby\Smol\Context\Config\Config;
-use Joby\Smol\Context\Config\ConfigTypeException;
+use Joby\Smol\Config\ConfigException;
 use Joby\Smol\Context\Container;
 use ReflectionException;
 use ReflectionFunction;
@@ -202,7 +201,11 @@ class DefaultInvoker implements Invoker
                 $types = $param->getType() instanceof ReflectionUnionType
                     ? $param->getType()->getTypes()
                     : [$param->getType()];
-                $types = array_map(fn($type) => (string) $type, $types);
+                foreach ($types as $type) {
+                    if ($type?->allowsNull())
+                        $types[] = 'null';
+                }
+                $types = array_map(fn($type) => ltrim((string) $type, '?'), $types);
                 $args[] = new ConfigPlaceholder(
                     $attr->key,
                     $types,
@@ -230,70 +233,91 @@ class DefaultInvoker implements Invoker
     {
         return array_map(
             function (ConfigPlaceholder|ObjectPlaceholder $arg): mixed {
-                if ($arg instanceof ConfigPlaceholder) {
-                    // attempt to get config value
-                    $config = $this->container->config;
-                    if (!$config->has($arg->key)) {
-                        if (!$arg->is_optional)
-                            throw new RuntimeException("Config value for key $arg->key does not exist.");
-                        $value = $arg->default;
-                    }
-                    else {
-                        $value = $config->get($arg->key);
-                    }
-                    // validate type
-                    $this->validateConfigValueType($value, $arg->key, $arg->valid_types, $arg->allows_null);
-                    return $value;
-                }
-                // arg must be an ObjectPlaceholder
-                return $this->container->get($arg->class);
+                // resolve config placeholder
+                if ($arg instanceof ConfigPlaceholder)
+                    return $this->buildConfigValue($arg);
+                // resolve object placeholder
+                else
+                    return $this->container->get($arg->class);
             },
             $args,
         );
     }
 
-    /**
-     * Validate that a config value is of the type expected by the parameter and throw an exception
-     * if it is an invalid/unexpected type.
-     * 
-     * @param array<string> $types
-     */
-    protected function validateConfigValueType(mixed $value, string $key, array $types, bool $allowNull): void
+    protected function buildConfigValue(ConfigPlaceholder $placeholder): mixed
     {
-        if (is_null($value) && $allowNull)
-            return;
-        sort($types);
-        $cache_key = md5(serialize([$value, $types]));
-        $valid = $this->cache(
-            "validateConfigValueType/$cache_key",
-            function () use ($types, $value): bool {
-                foreach ($types as $type) {
-                    $valid = match ($type) {
-                        'int'    => is_int($value),
-                        'string' => is_string($value),
-                        'float'  => is_float($value),
-                        'bool'   => is_bool($value),
-                        'array'  => is_array($value),
-                        'false'  => $value === false,
-                        default  => $value instanceof $type
-                    };
-                    if ($valid)
-                        return true;
+        $config = $this->container->config;
+        // first check that a value exists
+        if (!$config->has($placeholder->key) && !$placeholder->is_optional)
+            throw new ConfigException('Config value ' . $placeholder->key . ' is required but not found.');
+        // if it doesn't exist, and is optional, return the default value
+        if (!$config->has($placeholder->key))
+            return $placeholder->default;
+        // If there are no types, return as a string
+        if (empty($placeholder->valid_types))
+            return $config->getString($placeholder->key);
+        // Otherwise, first try to match any object types
+        foreach ($placeholder->valid_types as $type) {
+            if (class_exists($type)) {
+                try {
+                    return $config->getObject($placeholder->key, $type);
                 }
-                return false;
+                catch (ConfigException $e) {
+                    // continue trying other types
+                    continue;
+                }
             }
-        );
-        if (!$valid) {
-            $typeString = implode('|', $types);
-            if ($allowNull)
-                $typeString .= '|null';
-            throw new ConfigTypeException(sprintf(
-                'Config value from "%s" expected to be of type %s, got %s',
-                $key,
-                $typeString,
-                get_debug_type($value),
-            ));
         }
+        // next try the various scalar types if they're in the valid types
+        if (in_array('string', $placeholder->valid_types, true)) {
+            try {
+                return $config->getString($placeholder->key);
+            }
+            catch (ConfigException $e) {
+                // continue trying other types
+            }
+        }
+        if (in_array('int', $placeholder->valid_types, true)) {
+            try {
+                return $config->getInt($placeholder->key);
+            }
+            catch (ConfigException $e) {
+                // continue trying other types
+            }
+        }
+        if (in_array('float', $placeholder->valid_types, true)) {
+            try {
+                return $config->getFloat($placeholder->key);
+            }
+            catch (ConfigException $e) {
+                // continue trying other types
+            }
+        }
+        if (in_array('bool', $placeholder->valid_types, true)) {
+            try {
+                return $config->getBool($placeholder->key);
+            }
+            catch (ConfigException $e) {
+                // continue trying other types
+            }
+        }
+        // finally try array type (there's no getArray, so we have to fudge it)
+        if (in_array('array', $placeholder->valid_types, true)) {
+            try {
+                $value = $config->getRaw($placeholder->key);
+                if (is_array($value))
+                    return $value;
+            }
+            catch (ConfigException $e) {
+                // continue trying other types
+            }
+        }
+        // if we get here, no types matched
+        throw new ConfigException(
+            'Config value ' . $placeholder->key . ' could not be resolved to any of the expected types: ' .
+            implode(', ', $placeholder->valid_types) .
+            '.'
+        );
     }
 
 }

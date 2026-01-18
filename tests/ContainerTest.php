@@ -11,8 +11,7 @@ namespace Joby\Smol\Context;
 
 use Joby\Smol\Cache\CacheInterface;
 use Joby\Smol\Cache\EphemeralCache;
-use Joby\Smol\Context\Config\Config;
-use Joby\Smol\Context\Config\DefaultConfig;
+use Joby\Smol\Config\Config;
 use Joby\Smol\Context\Invoker\DefaultInvoker;
 use Joby\Smol\Context\Invoker\Invoker;
 use Joby\Smol\Context\TestClasses\CircularClassA;
@@ -38,7 +37,7 @@ class ContainerTest extends TestCase
             $con->get(Invoker::class)
         );
         $this->assertInstanceOf(
-            DefaultConfig::class,
+            Config::class,
             $con->get(Config::class)
         );
         $this->assertInstanceOf(

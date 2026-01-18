@@ -4,7 +4,7 @@
  *
  * @var TestClassA $test_a
  * @var TestClassB $test_b
- * #[ConfigValue("test_config_key")]
+ * #[ConfigValue("test/test_config_key")]
  * @var string                                        $test_value
  */
 

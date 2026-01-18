@@ -11,8 +11,8 @@ namespace Joby\Smol\Context;
 
 use Joby\Smol\Cache\CacheInterface;
 use Joby\Smol\Cache\EphemeralCache;
-use Joby\Smol\Context\Config\Config;
-use Joby\Smol\Context\Config\DefaultConfig;
+use Joby\Smol\Config\Config;
+use Joby\Smol\Config\ConfigInterface;
 use Joby\Smol\Context\Invoker\DefaultInvoker;
 use Joby\Smol\Context\Invoker\Invoker;
 use Throwable;
@@ -27,7 +27,7 @@ class Container
 
     public readonly CacheInterface $cache;
 
-    public readonly Config $config;
+    public readonly ConfigInterface $config;
 
     public readonly Invoker $invoker;
 
@@ -54,10 +54,14 @@ class Container
      */
     protected array $instantiating = [];
 
-    public function __construct(Config|null $config = null, Invoker|null $invoker_class = null, CacheInterface|null $cache = null)
+    public function __construct(
+        ConfigInterface|null $config = null,
+        CacheInterface|null $cache = null,
+        Invoker|null $invoker_class = null,
+    )
     {
         $this->cache = $cache ?? new EphemeralCache();
-        $this->config = $config ?? new DefaultConfig();
+        $this->config = $config ?? new Config();
         $this->invoker = $invoker_class ? new $invoker_class($this) : new DefaultInvoker($this);
     }
 

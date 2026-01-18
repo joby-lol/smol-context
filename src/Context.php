@@ -18,27 +18,20 @@ namespace Joby\Smol\Context;
  * that when you end a context, you revert to the prior one. This is useful for things like atomic rollbacks, building
  * additional requests without impacting the main one, etc.
  *
- * There are also global functions for accessing the main functionality in an even more convenient way. They are simply
- * aliases of the main methods of this class and the Invoker:
+ * To do more advanced operations (execute callables with injection, include files with docblock injection), access the
+ * Invoker service via the container:
  *
- * Get an object:
- * Context::get() => ctx()
- *
- * Register a class or object:
- * Context::register() => ctx_register()
- *
- * Execute a callable with injectable dependencies:
- * Context::get(Invoker::class)->execute() => ctx_execute()
- *
- * Include a file with injectable type-hinted variables:
- * Context::get(Invoker::class)->include() => ctx_include()
+ * - Context::get(Invoker::class)->execute(...)
+ * - Context::get(Invoker::class)->include(...)
  */
 class Context
 {
+
     /**
      * @var array<Container>
      */
-    protected static array $stack = [];
+    protected static array          $stack   = [];
+
     protected static Container|null $current;
 
     /**
@@ -153,4 +146,5 @@ class Context
     {
         return new Container();
     }
+
 }

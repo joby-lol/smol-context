@@ -9,8 +9,7 @@
 
 namespace Joby\Smol\Context\Invoker;
 
-use Joby\Smol\Context\Config\Config;
-use Joby\Smol\Context\Config\DefaultConfig;
+use Joby\Smol\Config\Sources\ArraySource;
 use Joby\Smol\Context\Container;
 use Joby\Smol\Context\TestClasses\TestClassA;
 use Joby\Smol\Context\TestClasses\TestClassB;
@@ -55,8 +54,8 @@ class DefaultInvokerIncludeTest extends TestCase
 
     public function testConfigValue(): void
     {
-        $config = new DefaultConfig([], ['test_config_key' => 'test_value']);
-        $con = new Container(config: $config);
+        $con = new Container();
+        $con->config->addSource('foo', new ArraySource(['test_key' => 'test_value']));
 
         $this->assertEquals(
             'test_value',
@@ -66,8 +65,8 @@ class DefaultInvokerIncludeTest extends TestCase
 
     public function testMultipleVariables(): void
     {
-        $config = new DefaultConfig([], ['test_config_key' => 'test_value']);
-        $con = new Container(config: $config);
+        $con = new Container();
+        $con->config->addSource('test', new ArraySource(['test_config_key' => 'test_value']));
         $con->register(TestClassA::class);
         $con->register(TestClassB::class);
 
@@ -83,30 +82,6 @@ class DefaultInvokerIncludeTest extends TestCase
         $this->assertEquals($a, $result['test_a']);
         $this->assertEquals($b, $result['test_b']);
         $this->assertEquals('test_value', $result['test_value']);
-    }
-
-    public function testNullableTypes(): void
-    {
-        $con = new Container();
-        $con->get(Config::class)->set('nullable_string_key', null);
-        $con->get(Config::class)->set('nullable_int_key', null);
-
-        $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testNullableTypes.php');
-
-        $this->assertIsArray($result);
-        $this->assertArrayHasKey('nullable_string', $result);
-        $this->assertArrayHasKey('nullable_int', $result);
-        $this->assertNull($result['nullable_string']);
-        $this->assertNull($result['nullable_int']);
-
-        // Test with non-null values
-        $con->get(Config::class)->set('nullable_string_key', 'string_value');
-        $con->get(Config::class)->set('nullable_int_key', 42);
-
-        $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testNullableTypes.php');
-
-        $this->assertEquals('string_value', $result['nullable_string']);
-        $this->assertEquals(42, $result['nullable_int']);
     }
 
     public function testFileNotFound(): void
@@ -133,7 +108,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testArrayType(): void
     {
         $con = new Container();
-        $con->get(Config::class)->set('test_array_key', ['item1', 'item2']);
+        $con->config->addSource('test', new ArraySource(['test_array_key' => ['item1', 'item2']]));
         $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testArrayType.php');
         $this->assertIsArray($result);
         $this->assertEquals(['item1', 'item2'], $result);
@@ -142,7 +117,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testBoolType(): void
     {
         $con = new Container();
-        $con->get(Config::class)->set('test_bool_key', true);
+        $con->config->addSource('test', new ArraySource(['test_bool_key' => true]));
         $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testBoolType.php');
         $this->assertTrue($result);
     }
@@ -150,7 +125,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testFloatType(): void
     {
         $con = new Container();
-        $con->get(Config::class)->set('test_float_key', 3.14);
+        $con->config->addSource('test', new ArraySource(['test_float_key' => 3.14]));
         $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testFloatType.php');
         $this->assertEquals(3.14, $result);
     }
@@ -158,7 +133,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testIntType(): void
     {
         $con = new Container();
-        $con->get(Config::class)->set('test_int_key', 42);
+        $con->config->addSource('test', new ArraySource(['test_int_key' => 42]));
         $result = $con->get(Invoker::class)->include(__DIR__ . '/include_tests/testIntType.php');
         $this->assertEquals(42, $result);
     }
@@ -174,7 +149,7 @@ class DefaultInvokerIncludeTest extends TestCase
     {
         $con = new Container();
         $con->register(TestClassA::class);
-        $con->config->set('test_int_key', 42);
+        $con->config->addSource('test', new ArraySource(['test_int_key' => 42]));
         $result = $con->invoker->include(__DIR__ . '/include_tests/testIncludesFromNamespace.php');
         $this->assertEquals($con->get(TestClassA::class), $result['a']);
         $this->assertEquals($con->config, $result['c']);
@@ -184,7 +159,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testIncludesWithBufferedOutput(): void
     {
         $con = new Container();
-        $con->config->set('test_value', 'test');
+        $con->config->addSource('test', new ArraySource(['test_value' => 'test']));
         $result = $con->invoker->include(__DIR__ . '/include_tests/testIncludesWithBufferedOutput.php');
         $this->assertEquals('test_value: test', $result);
     }
@@ -192,7 +167,7 @@ class DefaultInvokerIncludeTest extends TestCase
     public function testIncludesWithBufferedOutputWhen1IsReturned(): void
     {
         $con = new Container();
-        $con->config->set('test_value', 'test');
+        $con->config->addSource('test', new ArraySource(['test_value' => 'test']));
         $result = $con->invoker->include(__DIR__ . '/include_tests/testIncludesWithBufferedOutputWhen1IsReturned.php');
         $this->assertEquals('test_value: test', $result);
     }

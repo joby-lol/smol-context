@@ -1,24 +1,6 @@
 # smolContext
 
-A lightweight, static dependency injection container for PHP that combines simplicity with powerful features.
-
-## What is it?
-
-smolContext is a PHP library that provides a global static dependency injection container. It allows you to:
-
-- Register and retrieve services/objects from anywhere in your codebase
-- Automatically resolve dependencies when instantiating objects
-- Execute callables with automatically injected dependencies
-- Include files with docblock-based dependency injection
-
-## Who is it for?
-
-This library is ideal for:
-
-- Developers who want a simple, no-configuration dependency injection solution
-- Projects where passing a container through every layer is impractical
-- Applications that need a balance between the simplicity of global access and the power of dependency injection
-- Developers who appreciate the convenience of global functions for common operations
+A lightweight dependency injection container with config integration and docblock-driven file inclusion.
 
 ## Installation
 
@@ -26,130 +8,350 @@ This library is ideal for:
 composer require joby/smol-context
 ```
 
-## Usage Examples
+## About
 
-The easiest way to use this library is with a handful of global functions that are registered via Composer.
-These will generally cover most use cases.
+smolContext provides a simple, static dependency injection container for PHP. Services are registered and automatically instantiated with their dependencies when retrieved.
 
-### Registering Objects and Classes
+**Key features:**
+
+- **Static API**: Access the container globally via `Context` without passing it around
+- **Automatic dependency resolution**: Constructor and callable parameters are injected automatically
+- **Config integration**: Inject config values alongside objects using `#[ConfigValue]`
+- **Docblock file inclusion**: Include PHP files with variables injected from docblock annotations
+- **Context stack**: Push/pop container scopes for testing, sub-requests, or rollback workflows
+
+## Basic Usage
+
+### Registering and Retrieving Services
 
 ```php
-// Register a class (lazy-loaded)
-ctx_register(UserService::class);
+use Joby\Smol\Context\Context;
 
-// Register an object instance
-$logger = new Logger();
-ctx_register($logger);
+// Register a class (lazy-loaded on first get)
+Context::register(App\UserService::class);
+
+// Register a concrete instance
+Context::register(new App\Logger());
+
+// Get registered services
+$users = Context::get(App\UserService::class);
+$logger = Context::get(App\Logger::class);
+
+// Services are cached - same instance every time
+assert($logger === Context::get(App\Logger::class));
 ```
 
-### Retrieving Objects
+### Creating Transient Objects
+
+Build objects without caching them in the container:
 
 ```php
-// Get a service from the container
-$userService = ctx(UserService::class);
+// Each call creates a new instance
+$parser1 = Context::new(App\Parser::class);
+$parser2 = Context::new(App\Parser::class);
+
+assert($parser1 !== $parser2);
 ```
 
-### Instantiating transient objects with Dependency Injection
+### Checking for Services
 
 ```php
-// Define a class with type-hinted dependencies
-// Important: ctx_new will throw an exception if it can't resolve *everything* for the constructor
-class SomeParserOrSomething {
-    public function __construct(protected Logger $logger) {
+if (Context::has(App\UserService::class)) {
+    $users = Context::get(App\UserService::class);
+}
+```
+
+## Executing Callables with Injection
+
+The `Invoker` service executes callables with automatic parameter injection:
+
+```php
+use Joby\Smol\Context\Context;
+use Joby\Smol\Context\Invoker\Invoker;
+
+Context::register(App\UserService::class);
+Context::register(App\Logger::class);
+
+$result = Context::get(Invoker::class)->execute(
+    function (App\UserService $users, App\Logger $logger): string {
+        $logger->log('Processing...');
+        return $users->process();
     }
-}
-
-// Instantiate a transient object that is not saved in the container
-$parser = ctx_new(SomeParserOrSomething::class);
+);
 ```
 
-### Executing Callables with Dependency Injection
+Type-hinted object parameters are automatically resolved from the container.
+
+## Config Integration
+
+Every container includes a config service (backed by `joby/smol-config`). Inject config values using the `#[ConfigValue]` attribute:
 
 ```php
-// Define a function with type-hinted dependencies
-function processUser(UserService $userService, Logger $logger) {
-    $logger->log('Processing user...');
-    return $userService->process();
-}
+use Joby\Smol\Context\Context;
+use Joby\Smol\Context\Invoker\ConfigValue;
+use Joby\Smol\Context\Invoker\Invoker;
+use Joby\Smol\Config\Sources\ArraySource;
 
-// Execute the function with automatically resolved dependencies
-$result = ctx_execute('processUser');
+// Add config source
+$runtime = new ArraySource();
+$runtime['name'] = 'My Application';
+$runtime['host'] = 'localhost';
+Context::container()->config->addSource('app', $runtime);
+Context::container()->config->addSource('db', $runtime);
+
+// Inject config values into callables
+$result = Context::get(Invoker::class)->execute(
+    function (
+        #[ConfigValue('app/name')] string $appName,
+        #[ConfigValue('db/host')] string $dbHost,
+    ): string {
+        return "{$appName} @ {$dbHost}";
+    }
+);
 ```
 
-### Including Files with Dependency Injection
-
-First create a file with docblock dependencies:
+### Mixing Config and Object Injection
 
 ```php
+use Joby\Smol\Config\Sources\ArraySource;
+
+Context::register(App\Logger::class);
+
+$config = new ArraySource();
+$config['debug'] = true;
+Context::container()->config->addSource('app', $config);
+
+Context::get(Invoker::class)->execute(
+    function (
+        App\Logger $logger,
+        #[ConfigValue('app/debug')] bool $debug,
+    ): void {
+        if ($debug) {
+            $logger->enableDebugMode();
+        }
+    }
+);
+```
+
+## Including Files with Docblock Injection
+
+Include PHP files with variables injected from docblock annotations. This is useful for templates, scripts, or configuration files that need access to services.
+
+### The Include File
+
+Create a file with dependencies declared in its opening docblock (`report.php`):
+
+```php
+<?php
+
+use App\UserService;
+use App\Logger;
+
 /**
- * @var UserService $userService
+ * @var UserService $users
  * @var Logger $logger
  */
 
-// these services all magically exist when the file is included via ctx_include()
-$logger->log('Generating user report');
-return $userService->generateReport();
+$logger->log('Generating report...');
+return $users->generateReport();
 ```
 
-Then you can include that file, and the docblock will be parsed to inject dependencies.
+### Including the File
 
 ```php
-// Include the file with dependencies automatically injected
-$report = ctx_include('/path/to/user_report.php');
+use Joby\Smol\Context\Context;
+use Joby\Smol\Context\Invoker\Invoker;
+
+Context::register(App\UserService::class);
+Context::register(App\Logger::class);
+
+$report = Context::get(Invoker::class)->include(__DIR__ . '/report.php');
 ```
 
-## Built-in Configuration System
+### Config Injection in Included Files
 
-The library includes a configuration system that allows you to inject config values as dependencies:
-
-```php
-// Set configuration values
-$config = ctx(Config::class);
-$config->set('app.name', 'My Application');
-$config->set('db.host', 'localhost');
-
-// Use config values as dependencies in functions
-function generateReport(
-    #[ConfigValue('app.name')] string $appName,
-    #[ConfigValue('db.host')] string $dbHost
-) {
-    echo "Generating report for $appName using database at $dbHost";
-}
-
-// Execute with config values automatically injected
-ctx_execute('generateReport');
-```
-
-You can also use config values in included files:
+Since docblocks don't support real PHP attributes, use strings that look like attributes on the line before `@var`:
 
 ```php
-// file: report.php
+<?php
+
+use App\Logger;
+
 /**
- * #[ConfigValue('app.name')]
+ * #[ConfigValue("app/name")]
  * @var string $appName
- * 
- * #[ConfigValue('db.host')]
- * @var string $dbHost
+ *
+ * @var Logger $logger
  */
 
-echo "Generating report for $appName using database at $dbHost";
-
-// Include with config values automatically injected
-ctx_include('report.php');
+$logger->log("Report for {$appName}");
 ```
 
-The configuration system supports:
+### Type Resolution
 
-- Type validation (string, int, bool, array, etc.)
-- Optional parameters with default values
-- Nullable parameters
-- Union types
-- String interpolation with `$config->interpolate("Value from ${config.key}")`
+Object types can be:
+- Fully qualified: `@var \App\UserService $users`
+- Imported via `use`: `@var UserService $users`
+- Resolved relative to the file's namespace
 
-## Advanced Documentation
+## Context Stack
 
-For more detailed information about the internal components and advanced features of the smolContext library,
-please see the [Advanced Documentation](README_advanced.md).
+The context maintains a stack of containers, allowing temporary scopes for testing, isolated operations, or rollback workflows.
+
+### Cloning the Current Container
+
+```php
+use Joby\Smol\Context\Context;
+
+Context::register(new App\Logger());
+$loggerA = Context::get(App\Logger::class);
+
+// Create isolated scope by cloning
+Context::openFromClone();
+Context::register(new App\Logger());
+$loggerB = Context::get(App\Logger::class);
+Context::close();
+
+$loggerC = Context::get(App\Logger::class);
+
+// Back to original scope
+assert($loggerA === $loggerC);
+assert($loggerA !== $loggerB);
+```
+
+### Starting with an Empty Container
+
+```php
+Context::openEmpty();
+// Fresh container with no services
+Context::register(App\TestLogger::class);
+// ... test code ...
+Context::close();
+```
+
+### Using a Custom Container
+
+```php
+$container = new Container();
+$container->register(App\MockService::class);
+
+Context::openFromContainer($container);
+// Use the custom container
+Context::close();
+```
+
+### Resetting Completely
+
+```php
+// Clear stack and current container
+Context::reset();
+```
+
+## Usage Patterns
+
+### Request-Scoped Services
+
+```php
+// Register services at application bootstrap
+Context::register(App\Database::class);
+Context::register(App\Logger::class);
+
+// Use throughout request handling
+$router->add(
+    new ExactMatcher('users'),
+    function (Request $request) {
+        $db = Context::get(App\Database::class);
+        return Response::json($db->getUsers());
+    }
+);
+```
+
+### Background Jobs
+
+```php
+// Clone context for job isolation
+Context::openFromClone();
+
+try {
+    $queue->add(function () {
+        $mailer = Context::get(App\Mailer::class);
+        $mailer->sendWelcomeEmail();
+    });
+} finally {
+    Context::close();
+}
+```
+
+### Template Rendering
+
+Create template files that get services injected (`templates/email.php`):
+
+```php
+<?php
+
+use App\Config;
+
+/**
+ * #[ConfigValue("app/name")]
+ * @var string $appName
+ *
+ * #[ConfigValue("app/url")]
+ * @var string $appUrl
+ */
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <title><?= htmlspecialchars($appName) ?></title>
+</head>
+<body>
+    <h1>Welcome to <?= htmlspecialchars($appName) ?></h1>
+    <p>Visit us at <a href="<?= htmlspecialchars($appUrl) ?>"><?= htmlspecialchars($appUrl) ?></a></p>
+</body>
+</html>
+```
+
+Render templates with automatic injection:
+
+```php
+use Joby\Smol\Config\Sources\ArraySource;
+
+$appConfig = new ArraySource();
+$appConfig['name'] = 'My App';
+$appConfig['url'] = 'https://example.com';
+Context::container()->config->addSource('app', $appConfig);
+
+$html = Context::get(Invoker::class)->include(__DIR__ . '/templates/email.php');
+```
+
+## API Reference
+
+### Static Context Methods
+
+- `Context::register(string|object $classOrObject): void` - Register a class or instance
+- `Context::get(string $class): object` - Retrieve a service (cached)
+- `Context::new(string $class): object` - Create a new instance (not cached)
+- `Context::has(string $class): bool` - Check if service is registered
+- `Context::container(): Container` - Access the current container
+
+### Stack Operations
+
+- `Context::openFromClone(): void` - Clone current container and push it
+- `Context::openEmpty(): void` - Create empty container and push it
+- `Context::openFromContainer(Container $c): void` - Use custom container
+- `Context::close(): void` - Pop stack and restore previous container
+- `Context::reset(): void` - Clear stack and container
+
+### Container Access
+
+```php
+$container = Context::container();
+
+// Access services
+$container->invoker  // Invoker instance
+$container->config   // Config instance (joby/smol-config)
+$container->cache    // Cache instance (joby/smol-cache)
+```
 
 ## Requirements
 

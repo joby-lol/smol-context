@@ -2,7 +2,7 @@
 /**
  * This file tests including a file that uses a float type.
  *
- * #[ConfigValue("test_float_key")]
+ * #[ConfigValue("test/test_float_key")]
  * @var float $test_float
  */
 

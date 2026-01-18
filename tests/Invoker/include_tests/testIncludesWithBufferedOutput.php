@@ -2,7 +2,7 @@
 /**
  * This file should get a ConfigValue and echo it. When included, the buffered output should be returned.
  *
- * #[ConfigValue("test_value")]
+ * #[ConfigValue("test/test_value")]
  * @var string $test_value
  */
 

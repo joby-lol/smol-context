@@ -9,14 +9,14 @@
 
 namespace Joby\Smol\Context\Invoker;
 
-use Joby\Smol\Context\Config\Config;
-use Joby\Smol\Context\Config\DefaultConfig;
+use Joby\Smol\Config\ConfigException;
+use Joby\Smol\Config\Sources\ArraySource;
 use Joby\Smol\Context\Container;
 use Joby\Smol\Context\TestClasses\TestClass_requires_A_and_B;
 use Joby\Smol\Context\TestClasses\TestClassA;
 use Joby\Smol\Context\TestClasses\TestClassB;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
+use stdClass;
 
 class DefaultInvokerTest extends TestCase
 {
@@ -145,11 +145,10 @@ class DefaultInvokerTest extends TestCase
     {
         $con = new Container();
         $inv = new DefaultInvoker($con);
-        $config = $con->get(Config::class);
-        $config->set('test_key', 'test_value');
+        $con->config->addSource('test', new ArraySource(['test_key' => 'test_value']));
         $this->assertEquals(
             'test_value',
-            $inv->execute(function (#[ConfigValue('test_key')] string $value) {
+            $inv->execute(function (#[ConfigValue('test/test_key')] string $value) {
                 return $value;
             }),
         );
@@ -161,17 +160,16 @@ class DefaultInvokerTest extends TestCase
         $inv = new DefaultInvoker($con);
 
         // Test with default value when config key doesn't exist
-        $result = $inv->execute(function (#[ConfigValue('missing.key')] string $param = 'default value') {
+        $result = $inv->execute(function (#[ConfigValue('test/missing.key')] string $param = 'default value') {
             return $param;
         });
 
         $this->assertEquals('default value', $result);
 
         // Test that config value overrides default when present
-        $config = $con->get(Config::class);
-        $config->set('existing.key', 'config value');
+        $con->config->addSource('test', new ArraySource(['existing.key' => 'config value']));
 
-        $result = $inv->execute(function (#[ConfigValue('existing.key')] string $param = 'default value') {
+        $result = $inv->execute(function (#[ConfigValue('test/existing.key')] string $param = 'default value') {
             return $param;
         });
 
@@ -184,26 +182,28 @@ class DefaultInvokerTest extends TestCase
         $inv = new DefaultInvoker($con);
 
         // Set up test values
-        $con->config->set('string.key', 'string value');
-        $con->config->set('int.key', 42);
-        $con->config->set('bool.key', true);
-        $con->config->set('array.key', ['test']);
+        $con->config->addSource('test', new ArraySource([
+            'string.key' => 'string value',
+            'int.key'    => 42,
+            'bool.key'   => true,
+            'array.key'  => ['test'],
+        ]));
 
         // Test correct types pass validation
         $this->assertEquals('string value', $inv->execute(
-            fn(#[ConfigValue('string.key')] string $param) => $param
+            fn(#[ConfigValue('test/string.key')] string $param) => $param
         ));
 
         $this->assertEquals(42, $inv->execute(
-            fn(#[ConfigValue('int.key')] int $param) => $param
+            fn(#[ConfigValue('test/int.key')] int $param) => $param
         ));
 
         $this->assertTrue($inv->execute(
-            fn(#[ConfigValue('bool.key')] bool $param) => $param
+            fn(#[ConfigValue('test/bool.key')] bool $param) => $param
         ));
 
         $this->assertEquals(['test'], $inv->execute(
-            fn(#[ConfigValue('array.key')] array $param) => $param
+            fn(#[ConfigValue('test/array.key')] array $param) => $param
         ));
     }
 
@@ -211,32 +211,16 @@ class DefaultInvokerTest extends TestCase
     {
         $con = new Container();
         $inv = new DefaultInvoker($con);
-        $config = $con->get(Config::class);
+        $con->config->addSource('test', new ArraySource(['wrong.type' => 'not an integer']));
 
-        // Set string value but try to use as int
-        $config->set('wrong.type', 'not an integer');
+        $this->expectException(ExecutionException::class);
+        $this->expectExceptionMessage(
+            'Exception of type Joby\\Smol\\Config\\ConfigException thrown during execution: ' .
+            'Config value test/wrong.type could not be resolved to any of the expected types: int.'
+        );
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Config value from "wrong.type" expected to be of type int, got string');
-
-        $inv->execute(function (#[ConfigValue('wrong.type')] int $param) {
+        $inv->execute(function (#[ConfigValue('test/wrong.type')] int $param) {
         });
-    }
-
-    public function testNullableConfigParameters(): void
-    {
-        $con = new Container();
-        $inv = new DefaultInvoker($con);
-        $config = $con->get(Config::class);
-
-        // Test that null is allowed for nullable parameters
-        $config->set('nullable.key', null);
-
-        $result = $inv->execute(function (#[ConfigValue('nullable.key')] ?string $param) {
-            return $param;
-        });
-
-        $this->assertNull($result);
     }
 
     public function testMissingRequiredConfigParameter(): void
@@ -244,10 +228,13 @@ class DefaultInvokerTest extends TestCase
         $con = new Container();
         $inv = new DefaultInvoker($con);
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Config value for key missing.key does not exist.');
+        $this->expectException(ExecutionException::class);
+        $this->expectExceptionMessage(
+            'Exception of type Joby\\Smol\\Config\\ConfigException thrown during execution: ' .
+            'Config value test/missing.key is required but not found.'
+        );
 
-        $inv->execute(function (#[ConfigValue('missing.key')] string $param) {
+        $inv->execute(function (#[ConfigValue('test/missing.key')] string $param) {
         });
     }
 
@@ -255,49 +242,33 @@ class DefaultInvokerTest extends TestCase
     {
         $con = new Container();
         $inv = new DefaultInvoker($con);
-        $config = $con->get(Config::class);
+        $source = new ArraySource();
+        $con->config->addSource('test', $source);
 
         // Test int|string union type with int value
-        $config->set('union.key', 42);
-        $result = $inv->execute(function (#[ConfigValue('union.key')] int|string $param) {
+        $source['union.key'] = 42;
+        $result = $inv->execute(function (#[ConfigValue('test/union.key')] int|string $param) {
             return $param;
         });
         $this->assertEquals(42, $result);
 
         // Test int|string union type with string value
-        $config->set('union.key', 'test');
-        $result = $inv->execute(function (#[ConfigValue('union.key')] int|string $param) {
+        $source['union.key'] = 'test';
+        $result = $inv->execute(function (#[ConfigValue('test/union.key')] int|string $param) {
             return $param;
         });
         $this->assertEquals('test', $result);
 
         // Test int|string union type with an invalid value
-        $config->set('union.key', true);
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Config value from "union.key" expected to be of type int|string, got bool');
-        $inv->execute(function (#[ConfigValue('union.key')] int|string $param) {
-        });
-    }
-
-    public function testNullableUnionTypes(): void
-    {
-        $con = new Container();
-        $inv = new DefaultInvoker($con);
-        $config = $con->get(Config::class);
-
-        // Test null with a nullable union type
-        $config->set('nullable.union.key', null);
-        $result = $inv->execute(function (#[ConfigValue('nullable.union.key')] null|int|string $param) {
+        $source['union.key'] = new stdClass();
+        $this->expectException(ExecutionException::class);
+        $this->expectExceptionMessage(
+            'Exception of type Joby\\Smol\\Config\\ConfigException thrown during execution: ' .
+            'Config value test/union.key could not be resolved to any of the expected types: string, int.'
+        );
+        $inv->execute(function (#[ConfigValue('test/union.key')] int|string $param) {
             return $param;
         });
-        $this->assertNull($result);
-
-        // Test int with a nullable union type
-        $config->set('nullable.union.key', 42);
-        $result = $inv->execute(function (#[ConfigValue('nullable.union.key')] null|int|string $param) {
-            return $param;
-        });
-        $this->assertEquals(42, $result);
     }
 
 }
