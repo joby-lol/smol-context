@@ -12,7 +12,6 @@ namespace Joby\Smol\Context;
 use Joby\Smol\Cache\CacheInterface;
 use Joby\Smol\Cache\EphemeralCache;
 use Joby\Smol\Config\Config;
-use Joby\Smol\Context\Invoker\DefaultInvoker;
 use Joby\Smol\Context\Invoker\Invoker;
 use Joby\Smol\Context\TestClasses\CircularClassA;
 use Joby\Smol\Context\TestClasses\CircularClassB;
@@ -25,7 +24,7 @@ use PHPUnit\Framework\TestCase;
 class ContainerTest extends TestCase
 {
     /**
-     * Verify that the default bare Context returns a DefaultInvoker as its invoker. This
+     * Verify that the default bare Context returns a Invoker as its invoker. This
      * may be extended at some point to include other default built-in things ... if they
      * ever come to exist.
      */
@@ -33,7 +32,7 @@ class ContainerTest extends TestCase
     {
         $con = new Container();
         $this->assertInstanceOf(
-            DefaultInvoker::class,
+            Invoker::class,
             $con->get(Invoker::class)
         );
         $this->assertInstanceOf(

@@ -18,7 +18,7 @@ use Joby\Smol\Context\TestClasses\TestClassB;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
-class DefaultInvokerTest extends TestCase
+class InvokerTest extends TestCase
 {
 
     public function testEmptyInstantiation(): void
@@ -27,7 +27,7 @@ class DefaultInvokerTest extends TestCase
         // because more complex instantiation with dependencies is tested in
         // ContextTest.
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $this->assertInstanceOf(
             TestClassA::class,
             $inv->instantiate(TestClassA::class),
@@ -41,7 +41,7 @@ class DefaultInvokerTest extends TestCase
     public function testExecutionFromString(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $this->assertEquals(
             'Hello, world!',
             $inv->execute('Joby\Smol\Context\Invoker\testFunction'),
@@ -51,7 +51,7 @@ class DefaultInvokerTest extends TestCase
     public function testEmptyExecution(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $this->assertEquals(
             'Hello, world!',
             $inv->execute(function () {
@@ -75,7 +75,7 @@ class DefaultInvokerTest extends TestCase
     public function testExecutionWithDependencies(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $a = new TestClassA();
         $b = new TestClassB();
         $con->register($a);
@@ -126,7 +126,7 @@ class DefaultInvokerTest extends TestCase
     public function testInstantiationWithDependencies(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $a = new TestClassA();
         $b = new TestClassB();
         $con->register($a);
@@ -144,7 +144,7 @@ class DefaultInvokerTest extends TestCase
     public function testParameterConfigValueAttribute(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $con->config->addSource('test', new ArraySource(['test_key' => 'test_value']));
         $this->assertEquals(
             'test_value',
@@ -157,7 +157,7 @@ class DefaultInvokerTest extends TestCase
     public function testOptionalConfigParameters(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
 
         // Test with default value when config key doesn't exist
         $result = $inv->execute(function (#[ConfigValue('test/missing.key')] string $param = 'default value') {
@@ -179,7 +179,7 @@ class DefaultInvokerTest extends TestCase
     public function testConfigTypeValidation(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
 
         // Set up test values
         $con->config->addSource('test', new ArraySource([
@@ -210,7 +210,7 @@ class DefaultInvokerTest extends TestCase
     public function testConfigTypeValidationFailures(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $con->config->addSource('test', new ArraySource(['wrong.type' => 'not an integer']));
 
         $this->expectException(ExecutionException::class);
@@ -226,7 +226,7 @@ class DefaultInvokerTest extends TestCase
     public function testMissingRequiredConfigParameter(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
 
         $this->expectException(ExecutionException::class);
         $this->expectExceptionMessage(
@@ -241,7 +241,7 @@ class DefaultInvokerTest extends TestCase
     public function testUnionTypesWithConfig(): void
     {
         $con = new Container();
-        $inv = new DefaultInvoker($con);
+        $inv = new Invoker($con);
         $source = new ArraySource();
         $con->config->addSource('test', $source);
 

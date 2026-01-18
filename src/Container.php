@@ -13,7 +13,6 @@ use Joby\Smol\Cache\CacheInterface;
 use Joby\Smol\Cache\EphemeralCache;
 use Joby\Smol\Config\Config;
 use Joby\Smol\Config\ConfigInterface;
-use Joby\Smol\Context\Invoker\DefaultInvoker;
 use Joby\Smol\Context\Invoker\Invoker;
 use Throwable;
 
@@ -57,12 +56,12 @@ class Container
     public function __construct(
         ConfigInterface|null $config = null,
         CacheInterface|null $cache = null,
-        Invoker|null $invoker_class = null,
+        Invoker|null $invoker = null,
     )
     {
         $this->cache = $cache ?? new EphemeralCache();
         $this->config = $config ?? new Config();
-        $this->invoker = $invoker_class ? new $invoker_class($this) : new DefaultInvoker($this);
+        $this->invoker = $invoker ?? new Invoker($this);
     }
 
     public function __clone()
@@ -70,7 +69,7 @@ class Container
         // @phpstan-ignore-next-line it's fine to assign this in __clone()
         $this->config = clone $this->config;
         // @phpstan-ignore-next-line it's fine to assign this in __clone()
-        $this->invoker = new ($this->invoker::class)($this);
+        $this->invoker = clone $this->invoker;
         $unique_objects = [];
         foreach ($this->built as $object) {
             $object_id = spl_object_id($object);
@@ -84,9 +83,9 @@ class Container
     }
 
     /**
-     * Register a class or object to the context so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
+     * Register a class or object to the container so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
      *
-     * If a class is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
+     * If a class string is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
      * 
      * NOTE: Built-in container services (Invoker, CacheInterface, Config) cannot be registered using this method.
      *

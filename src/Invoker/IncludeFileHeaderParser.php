@@ -25,6 +25,8 @@ use PhpToken;
  * - group or multi-import use statements
  * - use function/const
  * - bracketed namespaces
+ * 
+ * @internal
  */
 class IncludeFileHeaderParser
 {

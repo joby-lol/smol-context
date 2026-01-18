@@ -10,7 +10,9 @@
 namespace Joby\Smol\Context\Invoker;
 
 /**
- * Class for holding the requested config key, and valid types of a config key that is being requested for injection, which must be resolved before passing it along. Also holds default value for use if there is no config set for the given key.
+ * Internal data structure used during dependency resolution to represent a parameter that should be injected with a value from the Config. Stores the config key, allowed types, and default value information until it can be resolved to an actual value.
+ * 
+ * @internal
  */
 class ConfigPlaceholder
 {

@@ -11,6 +11,9 @@ namespace Joby\Smol\Context;
 
 use RuntimeException;
 
+/**
+ * Exception thrown when a requested class is not registered in the container.
+ */
 class NotFoundException extends RuntimeException
 {
 }

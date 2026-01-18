@@ -42,8 +42,8 @@ class Context
      *
      * @return T
      *
-     * @throws NotFoundException  No entry was found for **this** identifier
      * @throws ContainerException Error while retrieving the entry
+     * @throws NotFoundException  No entry was found for **this** class
      */
     public static function get(string $class): object
     {
@@ -116,9 +116,9 @@ class Context
     }
 
     /**
-     * Register a class or object to the context so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
+     * Register a class or object to the container so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
      * 
-     * If a class is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
+     * If a class string is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
      *
      * @param class-string|object $class    the class name or object to register
      *
@@ -130,7 +130,7 @@ class Context
     }
 
     /**
-     * Check if a class is registered in the context, without instantiating it. This is useful for checking if a class is available without the overhead of instantiation.
+     * Check if a class is registered in the container, without instantiating it. This is useful for checking if a class is available without the overhead of instantiation.
      *
      * @param class-string $class
      */

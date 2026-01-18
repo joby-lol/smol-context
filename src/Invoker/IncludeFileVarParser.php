@@ -12,8 +12,9 @@ namespace Joby\Smol\Context\Invoker;
 use RuntimeException;
 
 /**
- * Parses an included PHP file for a header docblock and converts supported tags
- * into ConfigPlaceholder/ObjectPlaceholder instances.
+ * Parses an included PHP file for a header docblock and converts supported tags into ConfigPlaceholder/ObjectPlaceholder instances.
+ * 
+ * @internal
  */
 class IncludeFileVarParser
 {

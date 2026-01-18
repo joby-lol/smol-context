@@ -12,6 +12,9 @@ namespace Joby\Smol\Context\Invoker;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Exception thrown when an error occurs while including a file through the Invoker's include() method. Captures the file path, underlying exception, and any output buffer content for debugging.
+ */
 class IncludeException extends RuntimeException
 {
     public function __construct(public readonly string $include_path, public readonly Throwable $include_exception, public readonly string $output_buffer)

@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Throwable;
 
-class DefaultInvokerIncludeTest extends TestCase
+class InvokerIncludeTest extends TestCase
 {
     public function testBasicInclude(): void
     {

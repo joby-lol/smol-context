@@ -12,6 +12,9 @@ namespace Joby\Smol\Context\Invoker;
 use RuntimeException;
 use Throwable;
 
+/**
+ * Exception thrown when an error occurs while executing a callable through the Invoker's execute() method.
+ */
 class ExecutionException extends RuntimeException
 {
     public function __construct(Throwable $previous)

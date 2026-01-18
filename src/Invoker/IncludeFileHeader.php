@@ -11,6 +11,8 @@ namespace Joby\Smol\Context\Invoker;
 
 /**
  * Parsed metadata from the non-executable "header" portion of an included PHP file.
+ * 
+ * @internal
  */
 class IncludeFileHeader
 {

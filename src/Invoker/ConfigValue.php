@@ -12,7 +12,9 @@ namespace Joby\Smol\Context\Invoker;
 use Attribute;
 
 /**
- * Attribute used to indicate that an injected argument should be a value taken from the main Config
+ * Attribute used to indicate that a parameter in a constructor or callable should be injected with a value from the Config instead of an object from the Container. The value will be retrieved using the specified config key and automatically converted to match the parameter's type hint.
+ * 
+ * Supports all basic PHP types, as well as object types.
  */
 #[Attribute]
 

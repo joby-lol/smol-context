@@ -11,6 +11,9 @@ namespace Joby\Smol\Context;
 
 use RuntimeException;
 
+/**
+ * Exception thrown when an error occurs during container operations, such as instantiation failures, circular dependencies, or attempting to register protected container services.
+ */
 class ContainerException extends RuntimeException
 {
 }

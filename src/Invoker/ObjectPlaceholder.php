@@ -10,8 +10,9 @@
 namespace Joby\Smol\Context\Invoker;
 
 /**
- * Class for holding the requested class name of a parameter that must be resolved before passing it to
- * wherever it is being injected.
+ * Internal data structure used during dependency resolution to represent a parameter that should be injected with an object from the Container. Stores the class name until it can be resolved to an actual object instance.
+ * 
+ * @internal
  */
 class ObjectPlaceholder
 {
