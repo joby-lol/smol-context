@@ -56,12 +56,11 @@ class Container
     public function __construct(
         ConfigInterface|null $config = null,
         CacheInterface|null $cache = null,
-        Invoker|null $invoker = null,
     )
     {
         $this->cache = $cache ?? new EphemeralCache();
         $this->config = $config ?? new Config();
-        $this->invoker = $invoker ?? new Invoker($this);
+        $this->invoker = new Invoker($this);
     }
 
     public function __clone()
@@ -69,7 +68,7 @@ class Container
         // @phpstan-ignore-next-line it's fine to assign this in __clone()
         $this->config = clone $this->config;
         // @phpstan-ignore-next-line it's fine to assign this in __clone()
-        $this->invoker = clone $this->invoker;
+        $this->invoker = new Invoker($this);
         $unique_objects = [];
         foreach ($this->built as $object) {
             $object_id = spl_object_id($object);
@@ -176,6 +175,42 @@ class Container
             return true;
         // check if the class is registered
         return isset($this->classes[$id]);
+    }
+
+    /**
+     * Build a new object of the given class. It will not be cached or stored anywhere else.
+     *
+     * @template T of object
+     * @param class-string<T> $class
+     *
+     * @return T
+     */
+    public function new(string $class): object
+    {
+        return $this->invoker->instantiate($class);
+    }
+
+    /**
+     * Include a PHP file, with dependency injection for any docblock-injected parameters.
+     *
+     * @param string $file the path to the PHP file to include
+     * @return mixed the return value of the included file, or its output if it does not return anything
+     */
+    public function include(string $file): mixed
+    {
+        return $this->invoker->include($file);
+    }
+
+    /**
+     * Execute a callable, with dependency injection for any docblock-injected parameters.
+     * 
+     * @template T of mixed
+     * @param callable(mixed...):T $callable the callable to execute
+     * @return T the return value of the callable
+     */
+    public function execute(callable $callable): mixed
+    {
+        return $this->invoker->execute($callable);
     }
 
     /**

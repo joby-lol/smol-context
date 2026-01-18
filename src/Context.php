@@ -30,7 +30,7 @@ class Context
     /**
      * @var array<Container>
      */
-    protected static array          $stack   = [];
+    protected static array $stack = [];
 
     protected static Container|null $current;
 
@@ -60,7 +60,30 @@ class Context
      */
     public static function new(string $class): object
     {
-        return static::container()->invoker->instantiate($class);
+        return static::container()->new($class);
+    }
+
+    /**
+     * Include a PHP file, with dependency injection for any docblock-injected parameters.
+     *
+     * @param string $file the path to the PHP file to include
+     * @return mixed the return value of the included file, or its output if it does not return anything
+     */
+    public static function include(string $file): mixed
+    {
+        return static::container()->include($file);
+    }
+
+    /**
+     * Execute a callable, with dependency injection for any docblock-injected parameters.
+     * 
+     * @template T of mixed
+     * @param callable(mixed...):T $callable the callable to execute
+     * @return T the return value of the callable
+     */
+    public static function execute(callable $callable): mixed
+    {
+        return static::container()->execute($callable);
     }
 
     /**

@@ -63,16 +63,15 @@ if (Context::has(App\UserService::class)) {
 
 ## Executing Callables with Injection
 
-The `Invoker` service executes callables with automatic parameter injection:
+Execute callables with automatic parameter injection:
 
 ```php
 use Joby\Smol\Context\Context;
-use Joby\Smol\Context\Invoker\Invoker;
 
 Context::register(App\UserService::class);
 Context::register(App\Logger::class);
 
-$result = Context::get(Invoker::class)->execute(
+$result = Context::execute(
     function (App\UserService $users, App\Logger $logger): string {
         $logger->log('Processing...');
         return $users->process();
@@ -89,7 +88,6 @@ Every container includes a config service (backed by `joby/smol-config`). Inject
 ```php
 use Joby\Smol\Context\Context;
 use Joby\Smol\Context\Invoker\ConfigValue;
-use Joby\Smol\Context\Invoker\Invoker;
 use Joby\Smol\Config\Sources\ArraySource;
 
 // Add config source
@@ -100,7 +98,7 @@ Context::container()->config->addSource('app', $runtime);
 Context::container()->config->addSource('db', $runtime);
 
 // Inject config values into callables
-$result = Context::get(Invoker::class)->execute(
+$result = Context::execute(
     function (
         #[ConfigValue('app/name')] string $appName,
         #[ConfigValue('db/host')] string $dbHost,
@@ -121,7 +119,7 @@ $config = new ArraySource();
 $config['debug'] = true;
 Context::container()->config->addSource('app', $config);
 
-Context::get(Invoker::class)->execute(
+Context::execute(
     function (
         App\Logger $logger,
         #[ConfigValue('app/debug')] bool $debug,
@@ -160,17 +158,16 @@ return $users->generateReport();
 
 ```php
 use Joby\Smol\Context\Context;
-use Joby\Smol\Context\Invoker\Invoker;
 
 Context::register(App\UserService::class);
 Context::register(App\Logger::class);
 
-$report = Context::get(Invoker::class)->include(__DIR__ . '/report.php');
+$report = Context::include(__DIR__ . '/report.php');
 ```
 
 ### Config Injection in Included Files
 
-Since docblocks don't support real PHP attributes, use strings that look like attributes on the line before `@var`:
+Docblocks don't support real PHP attributes, so config injection uses a string that looks like an attribute on the line immediately before `@var`. This isn't actually an attribute, and you don't even need to formally `use` the attribute class, it's just so that the syntax is familiar.
 
 ```php
 <?php
@@ -196,7 +193,7 @@ Object types can be:
 
 ## Context Stack
 
-The context maintains a stack of containers, allowing temporary scopes for testing, isolated operations, or rollback workflows.
+The context actually maintains an internal stack of containers, allowing temporary scopes for testing, isolated operations, or rollback workflows.
 
 ### Cloning the Current Container
 
@@ -321,7 +318,7 @@ $appConfig['name'] = 'My App';
 $appConfig['url'] = 'https://example.com';
 Context::container()->config->addSource('app', $appConfig);
 
-$html = Context::get(Invoker::class)->include(__DIR__ . '/templates/email.php');
+$html = Context::include(__DIR__ . '/templates/email.php');
 ```
 
 ## API Reference
@@ -331,6 +328,8 @@ $html = Context::get(Invoker::class)->include(__DIR__ . '/templates/email.php');
 - `Context::register(string|object $classOrObject): void` - Register a class or instance
 - `Context::get(string $class): object` - Retrieve a service (cached)
 - `Context::new(string $class): object` - Create a new instance (not cached)
+- `Context::execute(callable $callable): mixed` - Execute a callable with dependency injection
+- `Context::include(string $file): mixed` - Include a PHP file with dependency injection
 - `Context::has(string $class): bool` - Check if service is registered
 - `Context::container(): Container` - Access the current container
 
@@ -341,17 +340,6 @@ $html = Context::get(Invoker::class)->include(__DIR__ . '/templates/email.php');
 - `Context::openFromContainer(Container $c): void` - Use custom container
 - `Context::close(): void` - Pop stack and restore previous container
 - `Context::reset(): void` - Clear stack and container
-
-### Container Access
-
-```php
-$container = Context::container();
-
-// Access services
-$container->invoker  // Invoker instance
-$container->config   // Config instance (joby/smol-config)
-$container->cache    // Cache instance (joby/smol-cache)
-```
 
 ## Requirements
 
