@@ -144,12 +144,13 @@ class Context
      * If a class string is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
      *
      * @param class-string|object $class    the class name or object to register
-     *
+     * @param class-string|class-string[]|bool $also  optional; if true, registers under all parent classes and interfaces; if a string or array of strings, registers under those specific classes as well
+     * 
      * @throws ContainerException if an error occurs while registering the class
      */
-    public static function register(string|object $class): void
+    public static function register(string|object $class, string|array|bool $also = false): void
     {
-        static::container()->register($class);
+        static::container()->register($class, $also);
     }
 
     /**

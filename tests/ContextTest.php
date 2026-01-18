@@ -19,7 +19,7 @@ class ContextTest extends TestCase
     /**
      * Test that the reset method properly clears the stack and current container.
      */
-    public function testReset(): void
+    public function test_reset(): void
     {
         // First, reset and create a context
         Context::reset();
@@ -42,7 +42,7 @@ class ContextTest extends TestCase
     /**
      * Test that the new() method works correctly.
      */
-    public function testNew(): void
+    public function test_new(): void
     {
         Context::reset();
         $a = Context::new(TestClassA::class);
@@ -59,7 +59,7 @@ class ContextTest extends TestCase
     /**
      * Test that the container method returns a Container instance and creates one if none exists.
      */
-    public function testContainer(): void
+    public function test_container(): void
     {
         // Get the container, which should create a new one
         $container = Context::container();
@@ -74,7 +74,7 @@ class ContextTest extends TestCase
     /**
      * Test opening a new context from an arbitrary Container.
      */
-    public function testOpenFromContainer(): void
+    public function test_open_from_container(): void
     {
         // Create a container
         $container = new Container();
@@ -98,7 +98,7 @@ class ContextTest extends TestCase
     /**
      * Test opening a new context from a clone of the current Container.
      */
-    public function testOpenFromClone(): void
+    public function test_open_from_clone(): void
     {
         // Get the original container
         $originalContainer = Context::container();
@@ -124,7 +124,7 @@ class ContextTest extends TestCase
     /**
      * Test opening a new empty context.
      */
-    public function testOpenEmpty(): void
+    public function test_open_empty(): void
     {
         // Get the original container
         $originalContainer = Context::container();
@@ -148,7 +148,7 @@ class ContextTest extends TestCase
     /**
      * Test closing a context.
      */
-    public function testClose(): void
+    public function test_close(): void
     {
         // Get the original container
         $originalContainer = Context::container();
@@ -180,7 +180,7 @@ class ContextTest extends TestCase
     /**
      * Test the get method for retrieving objects from the context.
      */
-    public function testGet(): void
+    public function test_get(): void
     {
         // Create a mock Container
         $mockContainer = $this->createMock(Container::class);
@@ -219,7 +219,7 @@ class ContextTest extends TestCase
     /**
      * Test the register method for registering classes in the context.
      */
-    public function testRegister(): void
+    public function test_register(): void
     {
         // Create a mock Container
         $mockContainer = $this->createMock(Container::class);
@@ -262,7 +262,7 @@ class ContextTest extends TestCase
     /**
      * Test the isRegistered method for checking if a class is registered.
      */
-    public function testIsRegistered(): void
+    public function test_is_registered(): void
     {
         // Create a mock Container
         $mockContainer = $this->createMock(Container::class);
@@ -309,7 +309,7 @@ class ContextTest extends TestCase
     /**
      * Test that nested contexts work correctly with multiple levels.
      */
-    public function testNestedContexts(): void
+    public function test_nested_contexts(): void
     {
         // Get the root context container
         $rootContainer = Context::container();

@@ -16,6 +16,7 @@ smolContext provides a simple, static dependency injection container for PHP. Se
 
 - **Static API**: Access the container globally via `Context` without passing it around
 - **Automatic dependency resolution**: Constructor and callable parameters are injected automatically
+- **Explicit registration**: Services register only under specified class names for predictable behavior
 - **Config integration**: Inject config values alongside objects using `#[ConfigValue]`
 - **Docblock file inclusion**: Include PHP files with variables injected from docblock annotations
 - **Context stack**: Push/pop container scopes for testing, sub-requests, or rollback workflows
@@ -40,6 +41,53 @@ $logger = Context::get(App\Logger::class);
 // Services are cached - same instance every time
 assert($logger === Context::get(App\Logger::class));
 ```
+
+### Registration Aliasing
+
+By default, services are registered only under their exact class name. This explicit behavior prevents surprises and makes dependencies clear. However, you can optionally register a service under additional class names using the `also` parameter.
+
+```php
+use Joby\Smol\Context\Context;
+
+// Default: Only retrievable by exact class name
+Context::register(App\Services\MysqlDatabase::class);
+Context::get(App\Services\MysqlDatabase::class); // ✓ Works
+Context::get(App\Contracts\DatabaseInterface::class); // ✗ Throws exception
+
+// Register under a specific interface
+Context::register(
+    App\Services\MysqlDatabase::class,
+    also: App\Contracts\DatabaseInterface::class
+);
+Context::get(App\Services\MysqlDatabase::class); // ✓ Works
+Context::get(App\Contracts\DatabaseInterface::class); // ✓ Works (same instance)
+
+// Register under multiple interfaces/classes
+Context::register(
+    App\Services\RedisCache::class,
+    also: [
+        App\Contracts\CacheInterface::class,
+        App\Contracts\Storage::class
+    ]
+);
+Context::get(App\Services\RedisCache::class); // ✓ Works
+Context::get(App\Contracts\CacheInterface::class); // ✓ Works (same instance)
+Context::get(App\Contracts\Storage::class); // ✓ Works (same instance)
+
+// Register under ALL parent classes and interfaces
+Context::register(
+    App\Services\FileLogger::class,
+    also: true
+);
+// Now retrievable by FileLogger, Logger, LoggerInterface, etc.
+```
+
+**When to use `also`:**
+
+- `false` (default): For concrete implementations you'll reference directly
+- `string`: When injecting via a specific interface or parent class (such as replacing something with a child class)
+- `array`: When the same instance should satisfy multiple contracts
+- `true`: For widely-used services accessed via various type hints (use sparingly)
 
 ### Creating Transient Objects
 
@@ -263,6 +311,33 @@ $router->add(
 );
 ```
 
+### Interface-Based Dependency Injection
+
+```php
+// Register implementations under their interfaces
+Context::register(
+    App\Services\PdoDatabase::class,
+    also: App\Contracts\DatabaseInterface::class
+);
+
+Context::register(
+    App\Services\RedisCache::class,
+    also: App\Contracts\CacheInterface::class
+);
+
+// Route handlers can depend on interfaces
+$router->add(
+    new ExactMatcher('users'),
+    function (
+        App\Contracts\DatabaseInterface $db,
+        App\Contracts\CacheInterface $cache
+    ) {
+        // Dependencies injected automatically
+        return Response::json($db->getUsers());
+    }
+);
+```
+
 ### Background Jobs
 
 ```php
@@ -325,7 +400,7 @@ $html = Context::include(__DIR__ . '/templates/email.php');
 
 ### Static Context Methods
 
-- `Context::register(string|object $classOrObject): void` - Register a class or instance
+- `Context::register(string|object $classOrObject, string|array|bool $also = false): void` - Register a class or instance
 - `Context::get(string $class): object` - Retrieve a service (cached)
 - `Context::new(string $class): object` - Create a new instance (not cached)
 - `Context::execute(callable $callable): mixed` - Execute a callable with dependency injection

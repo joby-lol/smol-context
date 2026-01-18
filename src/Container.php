@@ -89,11 +89,13 @@ class Container
      * NOTE: Built-in container services (Invoker, CacheInterface, Config) cannot be registered using this method.
      *
      * @param class-string|object $class    the class name or object to register
-     *
+     * @param class-string|class-string[]|bool $also  optional; if true, registers under all parent classes and interfaces; if a string or array of strings, registers under those specific classes as well
+     * 
      * @throws ContainerException if an error occurs while registering the class
      */
     public function register(
         string|object $class,
+        string|array|bool $also = false,
     ): void
     {
         // if the class is an object, get its class name
@@ -110,12 +112,29 @@ class Container
             throw new ContainerException(
                 "Cannot register $class because it is provided by the container itself.",
             );
-        // get all parent classes of the registered class
-        try {
-            $all_classes = $this->allClasses($class);
+        // build list of all classes to register under
+        $all_classes = [];
+        // if $also is true, automatically get all parent classes and interfaces
+        if ($also === true) {
+            try {
+                $all_classes = $this->allClasses($class);
+            }
+            catch (Throwable $th) {
+                throw new ContainerException('Error retrieving all classes for class ' . $class . ': ' . $th->getMessage(), previous: $th);
+            }
         }
-        catch (Throwable $th) {
-            throw new ContainerException('Error retrieving all classes for class ' . $class . ': ' . $th->getMessage(), previous: $th);
+        // if $also is false, only register under the given class
+        elseif ($also === false) {
+            $all_classes = [$class];
+        }
+        // if $also is a string, register under that specific class as well
+        elseif (is_string($also)) {
+            $all_classes = [$class, $also];
+        }
+        // if $also is an array, register under all those specific classes as well
+        elseif (is_array($also)) {
+            $all_classes = $also;
+            array_unshift($all_classes, $class);
         }
         // save all classes under the class name alias list
         foreach ($all_classes as $alias_class) {
