@@ -1,6 +1,6 @@
 <?php
 
-/*
+/**
  * smolContext
  * https://github.com/joby-lol/smol-context
  * (c) 2024-2025 Joby Elliott code@joby.lol
