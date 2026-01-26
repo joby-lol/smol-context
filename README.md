@@ -135,7 +135,7 @@ Every container includes a config service (backed by `joby/smol-config`). Inject
 
 ```php
 use Joby\Smol\Context\Context;
-use Joby\Smol\Context\Invoker\ConfigValue;
+use Joby\Smol\Context\ConfigValue;
 use Joby\Smol\Config\Sources\ArraySource;
 
 // Add config source

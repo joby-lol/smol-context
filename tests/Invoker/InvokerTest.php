@@ -9,8 +9,8 @@
 
 namespace Joby\Smol\Context\Invoker;
 
-use Joby\Smol\Config\ConfigException;
 use Joby\Smol\Config\Sources\ArraySource;
+use Joby\Smol\Context\ConfigValue;
 use Joby\Smol\Context\Container;
 use Joby\Smol\Context\TestClasses\TestClass_requires_A_and_B;
 use Joby\Smol\Context\TestClasses\TestClassA;

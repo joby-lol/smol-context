@@ -12,6 +12,7 @@ namespace Joby\Smol\Context\Invoker;
 use Closure;
 use InvalidArgumentException;
 use Joby\Smol\Config\ConfigException;
+use Joby\Smol\Context\ConfigValue;
 use Joby\Smol\Context\Container;
 use ReflectionException;
 use ReflectionFunction;
