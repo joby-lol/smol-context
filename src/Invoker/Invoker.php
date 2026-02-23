@@ -215,7 +215,10 @@ class Invoker
                 continue;
             }
             // get value and add it to the args list
-            assert(class_exists($type), "The class $type does not exist for parameter {$param->getName()}.");
+            assert(
+                class_exists($type) || interface_exists($type),
+                "The class $type does not exist for parameter {$param->getName()}.",
+            );
             $args[] = new ObjectPlaceholder(
                 $type,
             );
@@ -257,7 +260,7 @@ class Invoker
             return $config->getString($placeholder->key);
         // Otherwise, first try to match any object types
         foreach ($placeholder->valid_types as $type) {
-            if (class_exists($type)) {
+            if (class_exists($type) || interface_exists($type)) {
                 try {
                     return $config->getObject($placeholder->key, $type);
                 }
