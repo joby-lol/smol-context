@@ -153,8 +153,6 @@ class Invoker
             $cache_key = null;
         }
         elseif (is_array($fn)) {
-            assert(is_string($fn[1]), 'The second element of the array must be a method name.');
-            assert(is_object($fn[0]) || (is_string($fn[0]) && class_exists($fn[0])), 'The first element of the array must be a class name or an object.');
             $reflection = new ReflectionMethod($fn[0], $fn[1]);
             $cache_key = md5(serialize([$fn[0], $fn[1]]));
         }
@@ -201,7 +199,7 @@ class Invoker
                     ? $param->getType()->getTypes()
                     : [$param->getType()];
                 foreach ($types as $type) {
-                    if ($type?->allowsNull())
+                    if ($type->allowsNull())
                         $types[] = 'null';
                 }
                 $types = array_map(fn($type) => ltrim((string) $type, '?'), $types);
