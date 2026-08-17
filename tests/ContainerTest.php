@@ -236,6 +236,11 @@ class ContainerTest extends TestCase
 
         $this->assertTrue($con->has(DummyNsClassA::class));
         $this->assertInstanceOf(DummyNsClassA::class, $con->get(DummyNsClassA::class));
+
+        $con = new Container();
+        $con->registerNamespace('\\Joby\\Smol\\Context\\TestClasses\\Ns');
+
+        $this->assertFalse($con->has(DummyNsClassA::class));
     }
 
     /**
