@@ -15,6 +15,8 @@ use Joby\Smol\Config\Config;
 use Joby\Smol\Context\Invoker\Invoker;
 use Joby\Smol\Context\TestClasses\CircularClassA;
 use Joby\Smol\Context\TestClasses\CircularClassB;
+use Joby\Smol\Context\TestClasses\NsTest\DummyNsClassA;
+use Joby\Smol\Context\TestClasses\NsTest\DummyNsClassB;
 use Joby\Smol\Context\TestClasses\TestClass_requires_A_and_B;
 use Joby\Smol\Context\TestClasses\TestClassA;
 use Joby\Smol\Context\TestClasses\TestClassA1;
@@ -182,6 +184,67 @@ class ContainerTest extends TestCase
             // Verify the dependency chain is included in the message
             $this->assertStringContainsString(CircularClassA::class, $e->getPrevious()->getMessage());
         }
+    }
+
+    /**
+     * Test registering an entire namespace and resolving classes dynamically.
+     */
+    public function test_register_namespace(): void
+    {
+        $con = new Container();
+
+        $ns = 'Joby\\Smol\\Context\\TestClasses\\NsTest';
+
+        // Container should report support for classes in the registered namespace
+        $this->assertFalse($con->has(DummyNsClassA::class));
+        $con->registerNamespace($ns);
+        $this->assertTrue($con->has(DummyNsClassA::class));
+        $this->assertTrue($con->has(DummyNsClassB::class));
+
+        // Test basic retrieval
+        $a = $con->get(DummyNsClassA::class);
+        $this->assertInstanceOf(DummyNsClassA::class, $a);
+
+        // Test auto-instantiation with dependency resolution inside the namespace
+        $b = $con->get(DummyNsClassB::class);
+        $this->assertInstanceOf(DummyNsClassB::class, $b);
+        $this->assertSame($a, $b->a);
+
+        // Classes outside the namespace should not be registered
+        $this->assertFalse($con->has('Joby\\Smol\\Context\\TestClasses\\NonExistentClass'));
+    }
+
+    /**
+     * Test registering a namespace with trailing slashes or varying formats.
+     */
+    public function test_register_namespace_normalization(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('\\Joby\\Smol\\Context\\TestClasses\\NsTest\\');
+
+        $this->assertTrue($con->has(DummyNsClassA::class));
+        $this->assertInstanceOf(DummyNsClassA::class, $con->get(DummyNsClassA::class));
+    }
+
+    /**
+     * Test to verify that an explicitly registered class overrides a namespace registration.
+     */
+    public function test_explicit_registration_overrides_namespace(): void
+    {
+        $con = new Container();
+
+        // Register the full namespace first
+        $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+
+        // Create a specific instance to use as an explicit override
+        $overrideInstance = new DummyNsClassA();
+
+        // Explicitly register the class/instance
+        $con->register($overrideInstance, DummyNsClassA::class);
+
+        // Fetching the class should return the explicitly registered instance
+        $retrieved = $con->get(DummyNsClassA::class);
+        $this->assertSame($overrideInstance, $retrieved);
     }
 
 }

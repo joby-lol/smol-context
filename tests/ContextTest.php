@@ -9,6 +9,7 @@
 
 namespace Joby\Smol\Context;
 
+use Joby\Smol\Context\TestClasses\NsTest\DummyNsClassA;
 use Joby\Smol\Context\TestClasses\TestClassA;
 use Joby\Smol\Context\TestClasses\TestClassB;
 use PHPUnit\Framework\TestCase;
@@ -257,6 +258,42 @@ class ContextTest extends TestCase
 
         // Register an object
         Context::register($object);
+    }
+
+    /**
+     * Test registering a namespace via the static Context interface.
+     */
+    public function test_register_namespace(): void
+    {
+        $mockContainer = $this->createMock(Container::class);
+
+        $namespace = 'Joby\\Smol\\Context\\TestClasses\\NsTest';
+
+        $mockContainer->expects($this->once())
+            ->method('registerNamespace')
+            ->with($namespace);
+
+        Context::reset();
+        Context::openFromContainer($mockContainer);
+
+        Context::registerNamespace($namespace);
+    }
+
+    /**
+     * Integration test to verify that registerNamespace resolves classes through Context static calls.
+     */
+    public function test_register_namespace_integration(): void
+    {
+        Context::reset();
+        Context::registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+
+        $this->assertTrue(Context::has(DummyNsClassA::class));
+
+        $a = Context::get(DummyNsClassA::class);
+        $this->assertInstanceOf(DummyNsClassA::class, $a);
+
+        // Verify singleton behavior within the same active context
+        $this->assertSame($a, Context::get(DummyNsClassA::class));
     }
 
     /**

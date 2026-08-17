@@ -89,6 +89,21 @@ Context::register(
 - `array`: When the same instance should satisfy multiple contracts
 - `true`: For widely-used services accessed via various type hints (use sparingly)
 
+### Namespace registration
+
+`registerNamespace()` allows entire namespaces to be registered for use. Any class in an entire namespace (including sub-namespaces) can be added with a single line.
+
+```php
+// Register all classes under a namespace
+$container->registerNamespace('App\\Services');
+
+// Classes in the namespace or child namespaces are now auto-wired on demand
+$mailer =$container->get(App\Services\Mailer\SmtpMailer::class);
+```
+
+Explicit single-class registrations via `register()` will override namespace registrations, so it is always possible to override classes with your own custom sub-classes.
+
+
 ### Creating Transient Objects
 
 Build objects without caching them in the container:

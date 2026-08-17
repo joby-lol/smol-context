@@ -40,6 +40,12 @@ class Container
     protected array $classes = [];
 
     /**
+     * Autowired namespaces. Any classes within the given arrays may be automatically instantiated if requested as a dependency.
+     * @var array<int,string>
+     */
+    protected array $namespaces = [];
+
+    /**
      * Array holding the built objects, indexed by class name. There will be multiple copies of most objects, as they are saved under all parent classes as well.
      *
      * @var array<class-string, object>
@@ -79,6 +85,16 @@ class Container
         foreach ($unique_objects as $obj) {
             $this->register($obj);
         }
+    }
+
+    /**
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested.
+     */
+    public function registerNamespace(string $namespace): void
+    {
+        $namespace = ltrim($namespace, "\\");
+        if (!in_array($namespace, $this->namespaces))
+            $this->namespaces[] = $namespace;
     }
 
     /**
@@ -193,7 +209,14 @@ class Container
         if ($id === Config::class)
             return true;
         // check if the class is registered
-        return isset($this->classes[$id]);
+        if (isset($this->classes[$id]))
+            return true;
+        // check if class is in an autowire namespace
+        foreach ($this->namespaces as $namespace)
+            if (str_starts_with($id, $namespace))
+                return true;
+        // otherwise return false
+        return false;
     }
 
     /**
@@ -300,14 +323,13 @@ class Container
     protected function instantiate(string $class): object
     {
         // if the class is not registered, return null
-        if (!isset($this->classes[$class])) {
+        if (!$this->has($class)) {
             throw new NotFoundException(
-                "The class $class is not registered in the context. " .
-                "Did you forget to call " . get_called_class() . "::register() to register it?"
+                "The class $class is not registered in the context.",
             );
         }
         // get the actual class name from the registered classes
-        $actual_class = $this->classes[$class];
+        $actual_class = $this->classes[$class] ?? $class;
         // check for circular dependencies
         $dependency_key = $actual_class;
         if (isset($this->instantiating[$dependency_key])) {

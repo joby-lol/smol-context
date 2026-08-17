@@ -139,6 +139,14 @@ class Context
     }
 
     /**
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested.
+     */
+    public static function registerNamespace(string $namespace): void
+    {
+        static::container()->registerNamespace($namespace);
+    }
+
+    /**
      * Register a class or object to the container so that it can be retrieved later using the get() method. This will also register all parent classes and interfaces of the given class so that it can be retrieved using any of them.
      * 
      * If a class string is given, it will be instantiated the first time it is requested. If an object is given, it will be saved as a built object and can be retrieved directly without instantiation.
