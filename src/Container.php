@@ -88,11 +88,13 @@ class Container
     }
 
     /**
-     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested.
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested. Will be internally normalized to include a trailing slash but no leading slash.
      */
     public function registerNamespace(string $namespace): void
     {
         $namespace = ltrim($namespace, "\\");
+        if (!str_ends_with($namespace, "\\"))
+            $namespace .= "\\";
         if (!in_array($namespace, $this->namespaces))
             $this->namespaces[] = $namespace;
     }

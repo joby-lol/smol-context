@@ -215,12 +215,24 @@ class ContainerTest extends TestCase
     }
 
     /**
-     * Test registering a namespace with trailing slashes or varying formats.
+     * Test registering a namespace with leading slashes.
      */
-    public function test_register_namespace_normalization(): void
+    public function test_register_namespace_normalization_leading(): void
     {
         $con = new Container();
         $con->registerNamespace('\\Joby\\Smol\\Context\\TestClasses\\NsTest\\');
+
+        $this->assertTrue($con->has(DummyNsClassA::class));
+        $this->assertInstanceOf(DummyNsClassA::class, $con->get(DummyNsClassA::class));
+    }
+
+    /**
+     * Test registering a namespace without trailing slashes.
+     */
+    public function test_register_namespace_normalization_trailing(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('\\Joby\\Smol\\Context\\TestClasses\\NsTest');
 
         $this->assertTrue($con->has(DummyNsClassA::class));
         $this->assertInstanceOf(DummyNsClassA::class, $con->get(DummyNsClassA::class));
