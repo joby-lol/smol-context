@@ -16,6 +16,7 @@ smolContext provides a simple, static dependency injection container for PHP. Se
 
 - **Static API**: Access the container globally via `Context` without passing it around
 - **Automatic dependency resolution**: Constructor and callable parameters are injected automatically
+- **Per-call dependency overrides**: Supply objects for a single execution, instantiation, or file inclusion without changing container registrations
 - **Explicit registration**: Services register only under specified class names for predictable behavior
 - **Config integration**: Inject config values alongside objects using `#[ConfigValue]`
 - **Docblock file inclusion**: Include PHP files with variables injected from docblock annotations
@@ -103,7 +104,6 @@ $mailer =$container->get(App\Services\Mailer\SmtpMailer::class);
 
 Explicit single-class registrations via `register()` will override namespace registrations, so it is always possible to override classes with your own custom sub-classes.
 
-
 ### Creating Transient Objects
 
 Build objects without caching them in the container:
@@ -114,6 +114,13 @@ $parser1 = Context::new(App\Parser::class);
 $parser2 = Context::new(App\Parser::class);
 
 assert($parser1 !== $parser2);
+```
+
+Constructor dependencies can also be supplied for an individual instance. Matching supplied objects take precedence over the container's registrations:
+
+```php
+$temporaryLogger = new App\Logger();
+$generator = Context::new(App\ReportGenerator::class, $temporaryLogger);
 ```
 
 ### Checking for Services
@@ -143,6 +150,26 @@ $result = Context::execute(
 ```
 
 Type-hinted object parameters are automatically resolved from the container.
+
+### Supplying Per-Call Overrides
+
+Pass one or more objects after a callable to use them instead of matching objects from the container for that invocation:
+
+```php
+$temporaryLogger = new App\Logger();
+
+$result = Context::execute(
+    function (App\UserService $users, App\Logger $logger): string {
+        $logger->log('Processing with a temporary logger...');
+        return $users->process();
+    },
+    $temporaryLogger,
+);
+```
+
+Here, `$logger` receives `$temporaryLogger`, while `$users` is still resolved from the container. Overrides are matched by type (including parent classes and interfaces), not by parameter position. If several supplied objects match the same parameter, the first matching object wins. Unrelated objects are ignored, and dependencies without matching overrides are resolved normally.
+
+Overrides are **limited to the individual call**. They do not register objects or modify the container, so subsequent calls without overrides use the original dependencies. They affect object dependency injection; `#[ConfigValue]` parameters continue to resolve from configuration.
 
 ## Config Integration
 
@@ -227,6 +254,15 @@ Context::register(App\Logger::class);
 
 $report = Context::include(__DIR__ . '/report.php');
 ```
+
+You can also supply objects for docblock-declared variables on a single include:
+
+```php
+$temporaryLogger = new App\Logger();
+$report = Context::include(__DIR__ . '/report.php', $temporaryLogger);
+```
+
+In this example, `$logger` is the supplied instance and `$users` is resolved from the container. As with callable execution, the override does not change container registrations or affect later includes.
 
 ### Config Injection in Included Files
 
@@ -417,11 +453,19 @@ $html = Context::include(__DIR__ . '/templates/email.php');
 
 - `Context::register(string|object $classOrObject, string|array|bool $also = false): void` - Register a class or instance
 - `Context::get(string $class): object` - Retrieve a service (cached)
-- `Context::new(string $class): object` - Create a new instance (not cached)
-- `Context::execute(callable $callable): mixed` - Execute a callable with dependency injection
-- `Context::include(string $file): mixed` - Include a PHP file with dependency injection
+- `Context::new(string $class, object ...$override_args): object` - Create a new instance (not cached), with optional dependency overrides
+- `Context::execute(callable $callable, object ...$override_args): mixed` - Execute a callable with dependency injection and optional overrides
+- `Context::include(string $file, object ...$override_args): mixed` - Include a PHP file with dependency injection and optional overrides
 - `Context::has(string $class): bool` - Check if service is registered
 - `Context::container(): Container` - Access the current container
+
+### Invoker Methods
+
+The underlying `Invoker` also accepts the same per-call overrides:
+
+- `Invoker::instantiate(string $class, object ...$override_args): object` - Instantiate a class with injected constructor dependencies
+- `Invoker::execute(callable $fn, object ...$override_args): mixed` - Execute a callable with injected parameters
+- `Invoker::include(string $file, object ...$override_args): mixed` - Include a PHP file with docblock-injected variables
 
 ### Stack Operations
 

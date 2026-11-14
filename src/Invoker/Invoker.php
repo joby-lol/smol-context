@@ -31,6 +31,8 @@ class Invoker
 
     /**
      * Instantiate a class of the given type, resolving all its dependencies using the context injection system.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @template T of object
      * @param class-string<T> $class
@@ -39,13 +41,16 @@ class Invoker
      *
      * @throws InstantiationException if an error occurs while instantiating the class
      */
-    public function instantiate(string $class): object
+    public function instantiate(string $class, object ...$override_args): object
     {
         try {
             if (!method_exists($class, '__construct'))
                 $object = new $class;
             else
-                $object = new $class(...$this->buildFunctionArguments([$class, '__construct']));
+                $object = new $class(...$this->buildFunctionArguments(
+                    [$class, '__construct'],
+                    new SuppliedArguments(...$override_args),
+                ));
         }
         catch (Throwable $th) {
             throw new InstantiationException($class, $th);
@@ -56,6 +61,8 @@ class Invoker
 
     /**
      * Include a given file, parsing for an opening docblock and resolving var tags as if they were dependencies to be loaded from the container.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * Because docblock tags don't support Attributes, their equivalents are just parsed as strings. Core attributes are available by inserting strings that look like them on lines preceding a var tag. The actual Attribute classes need not be included, because this system just looks for strings that look like `#[ConfigValue("config_key")]`.
      *
@@ -63,7 +70,7 @@ class Invoker
      *
      * @throws IncludeException if an error occurs while including the file
      */
-    public function include(string $file): mixed
+    public function include(string $file, object ...$override_args): mixed
     {
         try {
             // clean up path
@@ -86,7 +93,10 @@ class Invoker
                 }
             );
             // extract variables into scope, include the file and return its output
-            return include_isolated($path, $this->resolvePlaceholders($vars));
+            return include_isolated($path, $this->resolvePlaceholders(
+                $vars,
+                new SuppliedArguments(...$override_args),
+            ));
         }
         catch (IncludeException $e) {
             throw $e;
@@ -98,6 +108,8 @@ class Invoker
 
     /**
      * Execute a callable, automatically instantiating any arguments it requires from the context injection system. This allows for easy execution of functions and methods with dependencies, without needing to manually resolve anything.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @template T of mixed
      * @param callable(mixed...):T $fn
@@ -106,14 +118,19 @@ class Invoker
      *
      * @throws ExecutionException if an error occurs while executing the callable
      */
-    public function execute(callable $fn): mixed
+    public function execute(callable $fn, object ...$override_args): mixed
     {
         try {
             if (!($fn instanceof Closure))
                 $fn = Closure::fromCallable($fn);
             $reflection = new ReflectionFunction($fn);
             // call with built arguments and return result
-            return $reflection->invokeArgs($this->buildFunctionArguments($fn));
+            return $reflection->invokeArgs(
+                $this->buildFunctionArguments(
+                    $fn,
+                    new SuppliedArguments(...$override_args),
+                ),
+            );
         }
         catch (Throwable $th) {
             throw new ExecutionException($th);
@@ -142,7 +159,7 @@ class Invoker
      * @return array<mixed>
      * @throws ReflectionException
      */
-    protected function buildFunctionArguments(callable|array $fn): array
+    protected function buildFunctionArguments(callable|array $fn, SuppliedArguments|null $supplied): array
     {
         if (is_string($fn)) {
             $reflection = new ReflectionFunction($fn);
@@ -173,7 +190,7 @@ class Invoker
             $args = $this->doBuildFunctionArguments($reflection);
         }
         // return $args
-        return $this->resolvePlaceholders($args);
+        return $this->resolvePlaceholders($args, $supplied);
     }
 
     /**
@@ -229,16 +246,17 @@ class Invoker
      * @param array<TKey,ConfigPlaceholder|ObjectPlaceholder> $args
      * @return array<TKey,mixed>
      */
-    protected function resolvePlaceholders(array $args): array
+    protected function resolvePlaceholders(array $args, SuppliedArguments|null $supplied): array
     {
         return array_map(
-            function (ConfigPlaceholder|ObjectPlaceholder $arg): mixed {
+            function (ConfigPlaceholder|ObjectPlaceholder $arg) use ($supplied): mixed {
                 // resolve config placeholder
                 if ($arg instanceof ConfigPlaceholder)
                     return $this->buildConfigValue($arg);
                 // resolve object placeholder
                 else
-                    return $this->container->get($arg->class);
+                    return $supplied?->get($arg->class)
+                        ?? $this->container->get($arg->class);
             },
             $args,
         );
