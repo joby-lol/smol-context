@@ -40,6 +40,12 @@ class Container
     protected array $classes = [];
 
     /**
+     * Autowired namespaces. Any classes within the given arrays may be automatically instantiated if requested as a dependency.
+     * @var array<int,string>
+     */
+    protected array $namespaces = [];
+
+    /**
      * Array holding the built objects, indexed by class name. There will be multiple copies of most objects, as they are saved under all parent classes as well.
      *
      * @var array<class-string, object>
@@ -79,6 +85,18 @@ class Container
         foreach ($unique_objects as $obj) {
             $this->register($obj);
         }
+    }
+
+    /**
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested. Will be internally normalized to include a trailing slash but no leading slash.
+     */
+    public function registerNamespace(string $namespace): void
+    {
+        $namespace = ltrim($namespace, "\\");
+        if (!str_ends_with($namespace, "\\"))
+            $namespace .= "\\";
+        if (!in_array($namespace, $this->namespaces))
+            $this->namespaces[] = $namespace;
     }
 
     /**
@@ -193,43 +211,56 @@ class Container
         if ($id === Config::class)
             return true;
         // check if the class is registered
-        return isset($this->classes[$id]);
+        if (isset($this->classes[$id]))
+            return true;
+        // check if class is in an autowire namespace
+        foreach ($this->namespaces as $namespace)
+            if (str_starts_with($id, $namespace))
+                return true;
+        // otherwise return false
+        return false;
     }
 
     /**
      * Build a new object of the given class. It will not be cached or stored anywhere else.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @template T of object
      * @param class-string<T> $class
      *
      * @return T
      */
-    public function new(string $class): object
+    public function new(string $class, object ...$override_args): object
     {
-        return $this->invoker->instantiate($class);
+        return $this->invoker->instantiate($class, ...$override_args);
     }
 
     /**
      * Include a PHP file, with dependency injection for any docblock-injected parameters.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @param string $file the path to the PHP file to include
      * @return mixed the return value of the included file, or its output if it does not return anything
      */
-    public function include(string $file): mixed
+    public function include(string $file, object ...$override_args): mixed
     {
-        return $this->invoker->include($file);
+        return $this->invoker->include($file, ...$override_args);
     }
 
     /**
      * Execute a callable, with dependency injection for any docblock-injected parameters.
      * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
+     * 
      * @template T of mixed
      * @param callable(mixed...):T $callable the callable to execute
      * @return T the return value of the callable
      */
-    public function execute(callable $callable): mixed
+    public function execute(callable $callable, object ...$override_args): mixed
     {
-        return $this->invoker->execute($callable);
+        return $this->invoker->execute($callable, ...$override_args);
     }
 
     /**
@@ -300,14 +331,13 @@ class Container
     protected function instantiate(string $class): object
     {
         // if the class is not registered, return null
-        if (!isset($this->classes[$class])) {
+        if (!$this->has($class)) {
             throw new NotFoundException(
-                "The class $class is not registered in the context. " .
-                "Did you forget to call " . get_called_class() . "::register() to register it?"
+                "The class $class is not registered in the context.",
             );
         }
         // get the actual class name from the registered classes
-        $actual_class = $this->classes[$class];
+        $actual_class = $this->classes[$class] ?? $class;
         // check for circular dependencies
         $dependency_key = $actual_class;
         if (isset($this->instantiating[$dependency_key])) {

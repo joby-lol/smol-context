@@ -52,38 +52,44 @@ class Context
 
     /**
      * Build a new object of the given class. It will not be cached or stored anywhere else.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @template T of object
      * @param class-string<T> $class
      *
      * @return T
      */
-    public static function new(string $class): object
+    public static function new(string $class, object ...$override_args): object
     {
-        return static::container()->new($class);
+        return static::container()->new($class, ...$override_args);
     }
 
     /**
      * Include a PHP file, with dependency injection for any docblock-injected parameters.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @param string $file the path to the PHP file to include
      * @return mixed the return value of the included file, or its output if it does not return anything
      */
-    public static function include(string $file): mixed
+    public static function include(string $file, object ...$override_args): mixed
     {
-        return static::container()->include($file);
+        return static::container()->include($file, ...$override_args);
     }
 
     /**
      * Execute a callable, with dependency injection for any docblock-injected parameters.
      * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
+     * 
      * @template T of mixed
      * @param callable(mixed...):T $callable the callable to execute
      * @return T the return value of the callable
      */
-    public static function execute(callable $callable): mixed
+    public static function execute(callable $callable, object ...$override_args): mixed
     {
-        return static::container()->execute($callable);
+        return static::container()->execute($callable, ...$override_args);
     }
 
     /**
@@ -136,6 +142,14 @@ class Context
     public static function close(): void
     {
         static::$current = array_pop(static::$stack);
+    }
+
+    /**
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested.
+     */
+    public static function registerNamespace(string $namespace): void
+    {
+        static::container()->registerNamespace($namespace);
     }
 
     /**
