@@ -271,6 +271,259 @@ class InvokerTest extends TestCase
         });
     }
 
+    public function testExecutionWithPartialOverride(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $a = new TestClassA();
+        $b = new TestClassB();
+        $con->register($a);
+        $con->register($b);
+
+        $overrideA = new TestClassA();
+
+        $fn = fn(TestClassA $a, TestClassB $b) => [$a, $b];
+
+        // Override A, but resolve B normally.
+        [$resolvedA, $resolvedB] = $inv->execute($fn, $overrideA);
+
+        $this->assertSame($overrideA, $resolvedA);
+        $this->assertSame($b, $resolvedB);
+
+        // Overrides should not affect subsequent executions.
+        [$resolvedA, $resolvedB] = $inv->execute($fn);
+
+        $this->assertSame($a, $resolvedA);
+        $this->assertSame($b, $resolvedB);
+
+        // Nor should they modify the container itself.
+        $this->assertSame($a, $con->get(TestClassA::class));
+    }
+
+    public function testExecutionWithMultipleOverrides(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $a = new TestClassA();
+        $b = new TestClassB();
+        $con->register($a);
+        $con->register($b);
+
+        $overrideA = new TestClassA();
+        $overrideB = new TestClassB();
+
+        $fn = fn(TestClassA $a, TestClassB $b) => [$a, $b];
+
+        // Both dependencies can be overridden simultaneously.
+        [$resolvedA, $resolvedB] = $inv->execute(
+            $fn,
+            $overrideA,
+            $overrideB,
+        );
+
+        $this->assertSame($overrideA, $resolvedA);
+        $this->assertSame($overrideB, $resolvedB);
+
+        // Matching is by type, not argument position.
+        [$resolvedA, $resolvedB] = $inv->execute(
+            $fn,
+            $overrideB,
+            $overrideA,
+        );
+
+        $this->assertSame($overrideA, $resolvedA);
+        $this->assertSame($overrideB, $resolvedB);
+    }
+
+    public function testExecutionWithUnregisteredOverride(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        // Nothing is registered in the container.
+        $a = new TestClassA();
+        $b = new TestClassB();
+
+        // Supplied objects should work without registration.
+        [$resolvedA, $resolvedB] = $inv->execute(
+            fn(TestClassA $a, TestClassB $b) => [$a, $b],
+            $a,
+            $b,
+        );
+
+        $this->assertSame($a, $resolvedA);
+        $this->assertSame($b, $resolvedB);
+    }
+
+    public function testExecutionSelectsFirstCompatibleOverride(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $first = new TestClassA();
+        $second = new TestClassA();
+
+        // Unrelated objects should be ignored.
+        $unrelated = new stdClass();
+
+        $result = $inv->execute(
+            fn(TestClassA $a) => $a,
+            $unrelated,
+            $first,
+            $second,
+        );
+
+        // When multiple overrides match, the first one wins.
+        $this->assertSame($first, $result);
+
+        // Subclasses should also satisfy the requested type.
+        $subclass = new class extends TestClassA {};
+
+        $result = $inv->execute(
+            fn(TestClassA $a) => $a,
+            $subclass,
+        );
+
+        $this->assertSame($subclass, $result);
+    }
+
+    public function testInstantiationWithOverrides(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $a = new TestClassA();
+        $b = new TestClassB();
+        $con->register($a);
+        $con->register($b);
+
+        $overrideA = new TestClassA();
+        $overrideB = new TestClassB();
+
+        // Override only A.
+        $instance = $inv->instantiate(
+            TestClass_requires_A_and_B::class,
+            $overrideA,
+        );
+
+        $this->assertSame($overrideA, $instance->a);
+        $this->assertSame($b, $instance->b);
+
+        // Override only B.
+        $instance = $inv->instantiate(
+            TestClass_requires_A_and_B::class,
+            $overrideB,
+        );
+
+        $this->assertSame($a, $instance->a);
+        $this->assertSame($overrideB, $instance->b);
+
+        // Override both, in reverse order.
+        $instance = $inv->instantiate(
+            TestClass_requires_A_and_B::class,
+            $overrideB,
+            $overrideA,
+        );
+
+        $this->assertSame($overrideA, $instance->a);
+        $this->assertSame($overrideB, $instance->b);
+
+        // Ordinary instantiation must remain unaffected.
+        $instance = $inv->instantiate(
+            TestClass_requires_A_and_B::class,
+        );
+
+        $this->assertSame($a, $instance->a);
+        $this->assertSame($b, $instance->b);
+    }
+
+    public function testIncludeWithOverrides(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $a = new TestClassA();
+        $b = new TestClassB();
+        $con->register($a);
+        $con->register($b);
+
+        $overrideA = new TestClassA();
+        $overrideB = new TestClassB();
+
+        // Create a temporary PHP file with docblock dependencies.
+        $file = tempnam(sys_get_temp_dir(), 'smol-context-');
+        $this->assertIsString($file);
+
+        try {
+            $this->assertNotFalse(file_put_contents($file, <<<'PHP'
+                <?php
+                /**
+                 * @var \Joby\Smol\Context\TestClasses\TestClassA $a
+                 * @var \Joby\Smol\Context\TestClasses\TestClassB $b
+                 */
+                return [$a, $b];
+                PHP));
+
+            // Override A, resolve B from the container.
+            [$resolvedA, $resolvedB] = $inv->include(
+                $file,
+                $overrideA,
+            );
+
+            $this->assertSame($overrideA, $resolvedA);
+            $this->assertSame($b, $resolvedB);
+
+            // Override both, using the same included file.
+            [$resolvedA, $resolvedB] = $inv->include(
+                $file,
+                $overrideB,
+                $overrideA,
+            );
+
+            $this->assertSame($overrideA, $resolvedA);
+            $this->assertSame($overrideB, $resolvedB);
+
+            // Include again without overrides.
+            [$resolvedA, $resolvedB] = $inv->include($file);
+
+            $this->assertSame($a, $resolvedA);
+            $this->assertSame($b, $resolvedB);
+        }
+        finally {
+            unlink($file);
+        }
+    }
+
+    public function testExecutionWithOverridesAndConfigValues(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $con->config->addSource(
+            'test',
+            new ArraySource(['message' => 'configured value']),
+        );
+
+        $a = new TestClassA();
+        $con->register($a);
+
+        $overrideA = new TestClassA();
+
+        // Object overrides should coexist with config injection.
+        [$resolvedA, $message] = $inv->execute(
+            fn(
+            TestClassA $a,
+            #[ConfigValue('test/message')] string $message,
+        ) => [$a, $message],
+            $overrideA,
+        );
+
+        $this->assertSame($overrideA, $resolvedA);
+        $this->assertSame('configured value', $message);
+    }
+
 }
 
 function testFunction(): string

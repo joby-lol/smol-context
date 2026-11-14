@@ -198,38 +198,44 @@ class Container
 
     /**
      * Build a new object of the given class. It will not be cached or stored anywhere else.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @template T of object
      * @param class-string<T> $class
      *
      * @return T
      */
-    public function new(string $class): object
+    public function new(string $class, object ...$override_args): object
     {
-        return $this->invoker->instantiate($class);
+        return $this->invoker->instantiate($class, ...$override_args);
     }
 
     /**
      * Include a PHP file, with dependency injection for any docblock-injected parameters.
+     * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
      *
      * @param string $file the path to the PHP file to include
      * @return mixed the return value of the included file, or its output if it does not return anything
      */
-    public function include(string $file): mixed
+    public function include(string $file, object ...$override_args): mixed
     {
-        return $this->invoker->include($file);
+        return $this->invoker->include($file, ...$override_args);
     }
 
     /**
      * Execute a callable, with dependency injection for any docblock-injected parameters.
      * 
+     * Optionally include override objects that will be used in place of the container's objects for arguments if possible.
+     * 
      * @template T of mixed
      * @param callable(mixed...):T $callable the callable to execute
      * @return T the return value of the callable
      */
-    public function execute(callable $callable): mixed
+    public function execute(callable $callable, object ...$override_args): mixed
     {
-        return $this->invoker->execute($callable);
+        return $this->invoker->execute($callable, ...$override_args);
     }
 
     /**
