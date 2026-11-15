@@ -90,9 +90,9 @@ Context::register(
 - `array`: When the same instance should satisfy multiple contracts
 - `true`: For widely-used services accessed via various type hints (use sparingly)
 
-### Namespace registration
+### Autowiring
 
-`registerNamespace()` allows entire namespaces to be registered for use. Any class in an entire namespace (including sub-namespaces) can be added with a single line.
+`registerNamespace()` allows entire namespaces to be registered for autowiring use. Any class in an entire namespace (including sub-namespaces) can be added with a single line.
 
 ```php
 // Register all classes under a namespace
@@ -103,6 +103,22 @@ $mailer =$container->get(App\Services\Mailer\SmtpMailer::class);
 ```
 
 Explicit single-class registrations via `register()` will override namespace registrations, so it is always possible to override classes with your own custom sub-classes.
+
+#### Autowiring control attributes
+
+Autowiring may also be controlled via attributes.
+
+`Joby\Smol\Context\Autowire` marks a class as explicitly autowireable.
+
+`Joby\Smol\Context\NoAutowire` marks a class as explicitly non-autowireable, and takes precedence over `registerNamespace()`
+
+#### Autowiring explicit exclusion
+
+Any class may also be explicitly excluded from autowiring at the container level using `noAutowire()`. This method has the highest priority, and will override both `registerNamespace()` and the presence of an `Autowire` attribute.
+
+#### Autowiring and explicit registration
+
+Explicit registration overrides all autowiring exclusion. Even if a class is excluded from autowiring, explicitly adding it via `register()` will make it available to the container for injection.
 
 ### Creating Transient Objects
 

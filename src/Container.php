@@ -14,6 +14,7 @@ use Joby\Smol\Cache\EphemeralCache;
 use Joby\Smol\Config\Config;
 use Joby\Smol\Config\ConfigInterface;
 use Joby\Smol\Context\Invoker\Invoker;
+use ReflectionClass;
 use Throwable;
 
 /**
@@ -44,6 +45,12 @@ class Container
      * @var array<int,string>
      */
     protected array $namespaces = [];
+
+    /**
+     * List of classes that are not allowed to autowire.
+     * @var array<int,class-string>
+     */
+    protected array $no_autowire = [];
 
     /**
      * Array holding the built objects, indexed by class name. There will be multiple copies of most objects, as they are saved under all parent classes as well.
@@ -89,6 +96,8 @@ class Container
 
     /**
      * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested. Will be internally normalized to include a trailing slash but no leading slash.
+     * 
+     * Individual classes may be omitted by either adding them explicitly via the `noAutowire()` method, or by giving them the `NoAutowire` attribute.
      */
     public function registerNamespace(string $namespace): void
     {
@@ -97,6 +106,17 @@ class Container
             $namespace .= "\\";
         if (!in_array($namespace, $this->namespaces))
             $this->namespaces[] = $namespace;
+    }
+
+    /**
+     * Mark a class as non-autowireable. This will prevent it from being autowired even if its namespaces is registered or even if it has the Autowire attribute.
+     * @param class-string $class
+     * @return void
+     */
+    public function noAutowire(string $class): void
+    {
+        if (!in_array($class, $this->no_autowire))
+            $this->no_autowire[] = $class;
     }
 
     /**
@@ -213,10 +233,9 @@ class Container
         // check if the class is registered
         if (isset($this->classes[$id]))
             return true;
-        // check if class is in an autowire namespace
-        foreach ($this->namespaces as $namespace)
-            if (str_starts_with($id, $namespace))
-                return true;
+        // check if class is autowireable
+        if ($this->autowireable($id))
+            return true;
         // otherwise return false
         return false;
     }
@@ -318,7 +337,31 @@ class Container
     }
 
     /**
-     * Instantiate the given class if it has not been instantiated yet. Returns the built object when finished.
+     * Determine whether a given class is allowed to autowire, considering both full-namespace registrations and Autowire/NoAutowire attributes.
+     * @param class-string $class
+     * @return bool
+     */
+    protected function autowireable(string $class): bool
+    {
+        if (!class_exists($class))
+            return false;
+        if (in_array($class, $this->no_autowire))
+            return false;
+        $namespace_registered = false;
+        foreach ($this->namespaces as $namespace)
+            if (str_starts_with($class, $namespace)) {
+                $namespace_registered = true;
+                break;
+            }
+        $reflection = new ReflectionClass($class);
+        if ($reflection->getAttributes(NoAutowire::class))
+            return false;
+        return $namespace_registered
+            || $reflection->getAttributes(Autowire::class);
+    }
+
+    /**
+     * Instantiate the given class as a saved object if it has not been instantiated yet. Returns the built object when finished and adds it to the registry of built objects for later use.
      *
      * @template T of object
      * @param class-string<T> $class    the class of object to instantiate

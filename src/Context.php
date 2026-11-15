@@ -145,11 +145,23 @@ class Context
     }
 
     /**
-     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested.
+     * Register an entire namespace for autowiring. Any class within the given namespace will be auto-instantiated if requested. Will be internally normalized to include a trailing slash but no leading slash.
+     * 
+     * Individual classes may be omitted by either adding them explicitly via the `noAutowire()` method, or by giving them the `NoAutowire` attribute.
      */
     public static function registerNamespace(string $namespace): void
     {
         static::container()->registerNamespace($namespace);
+    }
+
+    /**
+     * Mark a class as non-autowireable. This will prevent it from being autowired even if its namespaces is registered or even if it has the Autowire attribute.
+     * @param class-string $class
+     * @return void
+     */
+    public static function noAutowire(string $class): void
+    {
+        static::container()->noAutowire($class);
     }
 
     /**

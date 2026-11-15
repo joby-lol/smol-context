@@ -264,4 +264,160 @@ class ContainerTest extends TestCase
         $this->assertSame($overrideInstance, $retrieved);
     }
 
+    public function test_autowire_attribute_without_namespace_registration(): void
+    {
+        $con = new Container();
+        $con->register(TestClassA::class);
+        $con->register(TestClassB::class);
+
+        $this->assertTrue($con->has(ContainerTestAutowire::class));
+        $object = $con->get(ContainerTestAutowire::class);
+        $this->assertInstanceOf(ContainerTestAutowire::class, $object);
+        $this->assertSame($con->get(TestClassA::class), $object->a);
+        $this->assertSame($con->get(TestClassB::class), $object->b);
+        $this->assertSame($object, $con->get(ContainerTestAutowire::class));
+        $this->assertSame(
+            $object,
+            $con->execute(fn(ContainerTestAutowire $dependency) => $dependency),
+        );
+    }
+
+    public function test_no_autowire_attribute_overrides_namespace(): void
+    {
+        $con = new Container();
+        $con->registerNamespace(__NAMESPACE__);
+
+        $this->assertTrue($con->has(DummyNsClassA::class));
+        $this->assertFalse($con->has(ContainerTestNoAutowire::class));
+
+        $this->expectException(NotFoundException::class);
+        $con->get(ContainerTestNoAutowire::class);
+    }
+
+    public function test_no_autowire_attribute_overrides_autowire_attribute(): void
+    {
+        $con = new Container();
+
+        $this->assertFalse($con->has(ContainerTestConflictingAutowire::class));
+        $con->registerNamespace(__NAMESPACE__);
+        $this->assertFalse($con->has(ContainerTestConflictingAutowire::class));
+
+        $this->expectException(NotFoundException::class);
+        $con->get(ContainerTestConflictingAutowire::class);
+    }
+
+    public function test_no_autowire_overrides_namespace_regardless_of_registration_order(): void
+    {
+        foreach ([true, false] as $namespace_first) {
+            $con = new Container();
+            if ($namespace_first)
+                $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+
+            $con->noAutowire(DummyNsClassA::class);
+
+            if (!$namespace_first)
+                $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+
+            $this->assertFalse($con->has(DummyNsClassA::class));
+            $this->assertTrue($con->has(DummyNsClassB::class));
+        }
+    }
+
+    public function test_no_autowire_prevents_retrieval_from_registered_namespace(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+        $con->noAutowire(DummyNsClassA::class);
+
+        $this->expectException(NotFoundException::class);
+        $con->get(DummyNsClassA::class);
+    }
+
+    public function test_no_autowire_overrides_autowire_attribute(): void
+    {
+        $con = new Container();
+
+        $this->assertTrue($con->has(ContainerTestAutowire::class));
+        $con->noAutowire(ContainerTestAutowire::class);
+        $con->noAutowire(ContainerTestAutowire::class);
+        $this->assertFalse($con->has(ContainerTestAutowire::class));
+        $con->registerNamespace(__NAMESPACE__);
+        $this->assertFalse($con->has(ContainerTestAutowire::class));
+
+        $this->expectException(NotFoundException::class);
+        $con->get(ContainerTestAutowire::class);
+    }
+
+    public function test_explicit_class_registration_overrides_autowiring_exclusions(): void
+    {
+        foreach ([DummyNsClassA::class, ContainerTestAutowire::class, ContainerTestNoAutowire::class, ContainerTestConflictingAutowire::class] as $class) {
+            $con = new Container();
+            $con->registerNamespace(__NAMESPACE__);
+            $con->noAutowire($class);
+            $this->assertFalse($con->has($class));
+
+            $con->register($class);
+
+            $this->assertTrue($con->has($class));
+            $this->assertInstanceOf($class, $con->get($class));
+        }
+    }
+
+    public function test_explicit_instance_registration_overrides_autowiring_exclusions(): void
+    {
+        foreach ([DummyNsClassA::class, ContainerTestNoAutowire::class, ContainerTestConflictingAutowire::class] as $class) {
+            $con = new Container();
+            $object = new $class();
+            $con->register($object);
+            $con->noAutowire($class);
+
+            $this->assertTrue($con->has($class));
+            $this->assertSame($object, $con->get($class));
+        }
+    }
+
+    public function test_no_autowire_prevents_dependency_injection(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+        $con->noAutowire(DummyNsClassA::class);
+
+        $this->expectException(ContainerException::class);
+        $this->expectExceptionMessage(DummyNsClassA::class);
+        $con->get(DummyNsClassB::class);
+    }
+
+    public function test_excluded_dependency_can_be_explicitly_registered_for_injection(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+        $con->noAutowire(DummyNsClassA::class);
+        $con->register(DummyNsClassA::class);
+
+        $object = $con->get(DummyNsClassB::class);
+        $this->assertSame($con->get(DummyNsClassA::class), $object->a);
+    }
+
+    public function test_nonexistent_class_in_registered_namespace_is_not_available(): void
+    {
+        $con = new Container();
+        $con->registerNamespace('Joby\\Smol\\Context\\TestClasses\\NsTest');
+        $class = 'Joby\\Smol\\Context\\TestClasses\\NsTest\\NonExistentClass';
+
+        $this->assertFalse($con->has($class));
+
+        $this->expectException(NotFoundException::class);
+        $con->get($class);
+    }
+
 }
+
+#[Autowire]
+class ContainerTestAutowire extends TestClass_requires_A_and_B {}
+
+#[NoAutowire]
+class ContainerTestNoAutowire {}
+
+#[Autowire]
+#[NoAutowire]
+class ContainerTestConflictingAutowire {}
