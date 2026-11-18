@@ -343,7 +343,7 @@ class Container
      */
     protected function autowireable(string $class): bool
     {
-        if (!class_exists($class))
+        if (!class_exists($class, true))
             return false;
         if (in_array($class, $this->no_autowire))
             return false;
