@@ -524,9 +524,81 @@ class InvokerTest extends TestCase
         $this->assertSame('configured value', $message);
     }
 
+    public function testExecutionOverridesDoNotPropagateToNestedDependencies(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $registeredA = new TestClassA();
+        $registeredB = new TestClassB();
+        $overrideA = new TestClassA();
+
+        $con->register($registeredA);
+        $con->register($registeredB);
+        $con->register(TestClass_requires_A_and_B::class);
+
+        [$direct, $nested] = $inv->execute(
+            fn(
+            TestClassA $a,
+            TestClass_requires_A_and_B $nested,
+        ) => [$a, $nested],
+            $overrideA,
+        );
+
+        // Direct dependency uses the override.
+        $this->assertSame($overrideA, $direct);
+
+        // Nested dependencies use the container, not the override.
+        $this->assertSame($registeredA, $nested->a);
+        $this->assertSame($registeredB, $nested->b);
+        $this->assertNotSame($overrideA, $nested->a);
+    }
+
+    public function testInstantiationOverridesDoNotPropagateToNestedDependencies(): void
+    {
+        $con = new Container();
+        $inv = new Invoker($con);
+
+        $registeredA = new TestClassA();
+        $registeredB = new TestClassB();
+        $overrideA = new TestClassA();
+
+        $con->register($registeredA);
+        $con->register($registeredB);
+        $con->register(TestClass_requires_A_and_B::class);
+
+        $instance = $inv->instantiate(
+            NestedOverrideConsumer::class,
+            $overrideA,
+        );
+
+        // Override applies directly to the constructor.
+        $this->assertSame($overrideA, $instance->direct);
+
+        // Nested constructor receives the registered dependency.
+        $this->assertSame($registeredA, $instance->nested->a);
+        $this->assertSame($registeredB, $instance->nested->b);
+
+        // The container's registration remains unchanged.
+        $this->assertSame(
+            $registeredA,
+            $con->get(TestClassA::class),
+        );
+    }
+
 }
 
 function testFunction(): string
 {
     return 'Hello, world!';
+}
+
+class NestedOverrideConsumer
+{
+
+    public function __construct(
+        public readonly TestClassA $direct,
+        public readonly TestClass_requires_A_and_B $nested,
+    ) {}
+
 }
