@@ -99,7 +99,7 @@ Context::register(
 $container->registerNamespace('App\\Services');
 
 // Classes in the namespace or child namespaces are now auto-wired on demand
-$mailer =$container->get(App\Services\Mailer\SmtpMailer::class);
+$mailer = $container->get(App\Services\Mailer\SmtpMailer::class);
 ```
 
 Explicit single-class registrations via `register()` will override namespace registrations, so it is always possible to override classes with your own custom sub-classes.
