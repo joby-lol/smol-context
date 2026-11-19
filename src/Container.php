@@ -384,6 +384,7 @@ class Container
         // check for circular dependencies
         $dependency_key = $actual_class;
         if (isset($this->instantiating[$dependency_key])) {
+            unset($this->instantiating[$dependency_key]);
             throw new ContainerException(
                 "Circular dependency detected when instantiating $class. " .
                 implode(' -> ', array_keys($this->instantiating))
@@ -396,6 +397,7 @@ class Container
             $built = $this->get(Invoker::class)->instantiate($actual_class);
         }
         catch (Throwable $th) {
+            unset($this->instantiating[$dependency_key]);
             throw new ContainerException('Error instantiating class ' . $class . ': ' . $th->getMessage(), previous: $th);
         }
         // save the built object under all parent classes and interfaces
@@ -403,6 +405,7 @@ class Container
             $all_classes = $this->allClasses($actual_class);
         }
         catch (Throwable $th) {
+            unset($this->instantiating[$dependency_key]);
             throw new ContainerException('Error retrieving all classes for class ' . $class . ': ' . $th->getMessage(), previous: $th);
         }
         assert($built instanceof $class);
