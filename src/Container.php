@@ -384,7 +384,6 @@ class Container
         // check for circular dependencies
         $dependency_key = $actual_class;
         if (isset($this->instantiating[$dependency_key])) {
-            unset($this->instantiating[$dependency_key]);
             throw new ContainerException(
                 "Circular dependency detected when instantiating $class. " .
                 implode(' -> ', array_keys($this->instantiating))
