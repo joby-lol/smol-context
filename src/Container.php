@@ -371,50 +371,50 @@ class Container
      * @throws ContainerException Error while instantiating
      * @throws NotFoundException No entry found for **this** identifier
      */
+
     protected function instantiate(string $class): object
     {
-        // if the class is not registered, return null
-        if (!$this->has($class)) {
+        if (!$this->has($class))
             throw new NotFoundException(
                 "The class $class is not registered in the context.",
             );
-        }
-        // get the actual class name from the registered classes
         $actual_class = $this->classes[$class] ?? $class;
-        // check for circular dependencies
         $dependency_key = $actual_class;
-        if (isset($this->instantiating[$dependency_key])) {
+        // Check for circular dependencies BEFORE marking this one
+        if (isset($this->instantiating[$dependency_key]))
             throw new ContainerException(
                 "Circular dependency detected when instantiating $class. " .
                 implode(' -> ', array_keys($this->instantiating))
             );
-        }
-        // Mark this class as currently being instantiated
         $this->instantiating[$dependency_key] = true;
-        // instantiate the class and save it under the built objects
         try {
-            $built = $this->get(Invoker::class)->instantiate($actual_class);
+            try {
+                $built = $this->invoker->instantiate($actual_class);
+            }
+            catch (Throwable $th) {
+                throw new ContainerException(
+                    "Error instantiating class $class: " . $th->getMessage(),
+                    previous: $th,
+                );
+            }
+            try {
+                $all_classes = $this->allClasses($actual_class);
+            }
+            catch (Throwable $th) {
+                throw new ContainerException(
+                    "Error retrieving all classes for class $class: " .
+                    $th->getMessage(),
+                    previous: $th,
+                );
+            }
+            assert($built instanceof $class);
+            foreach ($all_classes as $alias_class)
+                $this->built[$alias_class] = $built;
+            return $built;
         }
-        catch (Throwable $th) {
+        finally {
             unset($this->instantiating[$dependency_key]);
-            throw new ContainerException('Error instantiating class ' . $class . ': ' . $th->getMessage(), previous: $th);
         }
-        // save the built object under all parent classes and interfaces
-        try {
-            $all_classes = $this->allClasses($actual_class);
-        }
-        catch (Throwable $th) {
-            unset($this->instantiating[$dependency_key]);
-            throw new ContainerException('Error retrieving all classes for class ' . $class . ': ' . $th->getMessage(), previous: $th);
-        }
-        assert($built instanceof $class);
-        foreach ($all_classes as $alias_class) {
-            $this->built[$alias_class] = $built;
-        }
-        // clean up list of what is currently instantiating
-        unset($this->instantiating[$dependency_key]);
-        // return the output
-        return $built;
     }
 
 }
