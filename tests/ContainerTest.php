@@ -410,14 +410,85 @@ class ContainerTest extends TestCase
         $con->get($class);
     }
 
+    public function test_circular_dependency_reports_complete_chain(): void
+    {
+        $con = new Container();
+        $con->register(CircularClassA::class);
+        $con->register(CircularClassB::class);
+
+        try {
+            $con->get(CircularClassA::class);
+            $this->fail('Expected circular dependency exception');
+        }
+        catch (ContainerException $e) {
+            // Unwrap contextual exceptions to find the original cause.
+            while ($e->getPrevious() !== null)
+                $e = $e->getPrevious();
+
+            $this->assertInstanceOf(ContainerException::class, $e);
+            $this->assertStringContainsString(
+                'Circular dependency detected',
+                $e->getMessage(),
+            );
+
+            // Both classes must appear, in the correct order.
+            $this->assertStringContainsString(
+                CircularClassA::class . ' -> ' . CircularClassB::class,
+                $e->getMessage(),
+            );
+        }
+    }
+
+    public function test_circular_dependency_failure_does_not_poison_container(): void
+    {
+        $con = new Container();
+        $con->register(CircularClassA::class);
+        $con->register(CircularClassB::class);
+        $con->register(TestClassA::class);
+
+        // Retry the same failing dependency graph twice.
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            try {
+                $con->get(CircularClassA::class);
+                $this->fail('Expected circular dependency exception');
+            }
+            catch (ContainerException $e) {
+                while ($e->getPrevious() !== null)
+                    $e = $e->getPrevious();
+
+                // Both attempts should reach the same actual cycle.
+                // Stale tracking would cause the second attempt to
+                // fail immediately, producing an incomplete chain.
+                $this->assertStringContainsString(
+                    CircularClassA::class . ' -> ' . CircularClassB::class,
+                    $e->getMessage(),
+                );
+            }
+        }
+
+        // Other registered classes should remain usable.
+        $a = $con->get(TestClassA::class);
+        $this->assertInstanceOf(TestClassA::class, $a);
+        $this->assertSame($a, $con->get(TestClassA::class));
+    }
+
 }
 
 #[Autowire]
-class ContainerTestAutowire extends TestClass_requires_A_and_B {}
+class ContainerTestAutowire extends TestClass_requires_A_and_B
+{
+
+}
 
 #[NoAutowire]
-class ContainerTestNoAutowire {}
+class ContainerTestNoAutowire
+{
+
+}
 
 #[Autowire]
 #[NoAutowire]
-class ContainerTestConflictingAutowire {}
+class ContainerTestConflictingAutowire
+{
+
+}
